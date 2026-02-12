@@ -478,6 +478,7 @@ class KantorPlusAPITester:
         # Run all test modules
         test_results = [
             self.test_dashboard_stats(),
+            self.test_dashboard_preview(),
             self.test_bon_workflow(),
             self.test_bon_decline_workflow(),
             self.test_pengaduan_crud(),
