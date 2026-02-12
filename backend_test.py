@@ -122,6 +122,37 @@ class KantorPlusAPITester:
                     else:
                         self.log(f"✅ {role} dashboard stats complete: {response}")
 
+    def test_dashboard_preview(self):
+        """Test new dashboard preview endpoint for all roles"""
+        self.log("\n🔍 Testing Dashboard Preview...")
+        
+        for role in self.test_users.keys():
+            if role in self.tokens:
+                headers = {"Authorization": f"Bearer {self.tokens[role]}"}
+                success, response, status = self.run_test(
+                    f"Dashboard preview for {role}",
+                    "GET",
+                    "dashboard/preview",
+                    200,
+                    headers=headers
+                )
+                
+                if success:
+                    required_fields = ['bons', 'pengaduan', 'cuti', 'inventaris', 'bon_stats']
+                    missing_fields = [field for field in required_fields if field not in response]
+                    if missing_fields:
+                        self.log(f"❌ Missing fields in {role} preview: {missing_fields}", "ERROR")
+                    else:
+                        # Check bon_stats structure
+                        bon_stats = response.get('bon_stats', {})
+                        required_stats = ['pending', 'approved', 'declined']
+                        missing_stats = [stat for stat in required_stats if stat not in bon_stats]
+                        if missing_stats:
+                            self.log(f"❌ Missing bon_stats in {role} preview: {missing_stats}", "ERROR")
+                        else:
+                            self.log(f"✅ {role} dashboard preview complete - Bons: {len(response['bons'])}, Pengaduan: {len(response['pengaduan'])}, Cuti: {len(response['cuti'])}, Inventaris: {len(response['inventaris'])}")
+                            self.log(f"   Bon stats: Pending: {bon_stats['pending']}, Approved: {bon_stats['approved']}, Declined: {bon_stats['declined']}")
+
     def test_bon_workflow(self) -> bool:
         """Test complete bon approval workflow"""
         self.log("\n💰 Testing Bon Approval Workflow...")
