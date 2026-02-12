@@ -138,6 +138,35 @@ async def get_dashboard_stats(authorization: str = Header(None)):
         "total_inventaris": total_inventaris
     }
 
+@api_router.get("/dashboard/preview")
+async def get_dashboard_preview(authorization: str = Header(None)):
+    user = await get_current_user(authorization)
+    if user['role'] == 'pegawai':
+        recent_bons = await db.bons.find({"user_id": user['id']}, {"_id": 0, "foto": 0}).sort("created_at", -1).to_list(5)
+        recent_pengaduan = await db.pengaduan.find({"user_id": user['id']}, {"_id": 0}).sort("created_at", -1).to_list(5)
+        recent_cuti = await db.cuti.find({"user_id": user['id']}, {"_id": 0}).sort("created_at", -1).to_list(5)
+    elif user['role'] == 'atasan':
+        recent_bons = await db.bons.find({"status": "pending"}, {"_id": 0, "foto": 0}).sort("created_at", -1).to_list(5)
+        recent_pengaduan = await db.pengaduan.find({}, {"_id": 0}).sort("created_at", -1).to_list(5)
+        recent_cuti = await db.cuti.find({}, {"_id": 0}).sort("created_at", -1).to_list(5)
+    else:
+        recent_bons = await db.bons.find({"status": {"$in": ["approved_atasan", "approved_finance"]}}, {"_id": 0, "foto": 0}).sort("created_at", -1).to_list(5)
+        recent_pengaduan = await db.pengaduan.find({}, {"_id": 0}).sort("created_at", -1).to_list(5)
+        recent_cuti = await db.cuti.find({}, {"_id": 0}).sort("created_at", -1).to_list(5)
+    recent_inventaris = await db.inventaris.find({}, {"_id": 0}).sort("created_at", -1).to_list(5)
+    bon_stats = {
+        "pending": await db.bons.count_documents({"status": "pending"} if user['role'] != 'pegawai' else {"user_id": user['id'], "status": "pending"}),
+        "approved": await db.bons.count_documents({"status": {"$in": ["approved_atasan", "approved_finance"]}}),
+        "declined": await db.bons.count_documents({"status": "declined"} if user['role'] != 'pegawai' else {"user_id": user['id'], "status": "declined"}),
+    }
+    return {
+        "bons": recent_bons,
+        "pengaduan": recent_pengaduan,
+        "cuti": recent_cuti,
+        "inventaris": recent_inventaris,
+        "bon_stats": bon_stats,
+    }
+
 # --- Bon Routes ---
 @api_router.get("/bon")
 async def get_bons(authorization: str = Header(None)):
