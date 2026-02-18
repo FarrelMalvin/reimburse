@@ -410,8 +410,10 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
         pdf.set_font('Helvetica', '', 10)
         pdf.cell(5, 7, ':')
         pdf.cell(0, 7, str(val), ln=True)
-    est = bon.get("estimasi_biaya", {})
-    if est:
+    
+    # Estimasi items custom
+    estimasi_items = bon.get("estimasi_items", [])
+    if estimasi_items:
         pdf.ln(5)
         pdf.set_font('Helvetica', 'B', 11)
         pdf.cell(0, 8, 'ESTIMASI BIAYA PERJALANAN DINAS (KAS BON)', ln=True)
@@ -419,16 +421,18 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
-        biaya = [("Biaya Konsumsi", est.get("biaya_konsumsi", 0)), ("Biaya Transportasi (BBM)", est.get("biaya_transportasi", 0)), ("Biaya Entertainment", est.get("biaya_entertainment", 0)), ("Biaya Lain-lain", est.get("biaya_lainnya", 0))]
-        for i, (b_label, b_val) in enumerate(biaya):
+        total_est = 0
+        for i, item in enumerate(estimasi_items):
+            jumlah = item.get("jumlah", 0) or 0
             pdf.cell(10, 7, f'{i+1}.')
-            pdf.cell(80, 7, b_label)
-            pdf.cell(0, 7, f'Rp {b_val:,.0f}', ln=True)
+            pdf.cell(80, 7, item.get("uraian", "-"))
+            pdf.cell(0, 7, f'Rp {jumlah:,.0f}', ln=True)
+            total_est += jumlah
         pdf.set_font('Helvetica', 'B', 10)
-        total_est = sum(v for _, v in biaya)
         pdf.cell(10, 7, '')
         pdf.cell(80, 7, 'TOTAL')
         pdf.cell(0, 7, f'Rp {total_est:,.0f}', ln=True)
+    
     pdf.ln(15)
     pdf.set_font('Helvetica', '', 9)
     pdf.cell(60, 7, 'Yang Membawa,', align='C')
