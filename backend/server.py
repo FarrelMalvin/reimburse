@@ -540,10 +540,54 @@ async def approve_realisasi(real_id: str, authorization: str = Header(None)):
 async def decline_realisasi(real_id: str, data: BonAction, authorization: str = Header(None)):
     user = await get_current_user(authorization)
     r = await db.realisasi_bon.find_one({"id": real_id}, {"_id": 0})
-    if not r: raise HTTPException(status_code=404)
-    if user['role'] not in ['atasan', 'finance']: raise HTTPException(status_code=403)
-    await db.realisasi_bon.update_one({"id": real_id}, {"$set": {"status": "declined", "declined_by": user['role'], "decline_reason": data.reason or "-", "updated_at": datetime.now(timezone.utc).isoformat()}})
-    await db.notifications.insert_one({"id": str(uuid.uuid4()), "user_id": r['user_id'], "message": f"Realisasi Bon '{r['no_bon_ref']}' ditolak: {data.reason or '-'}", "type": "declined", "bon_id": real_id, "is_read": False, "created_at": datetime.now(timezone.utc).isoformat()})
+    if not r: 
+        raise HTTPException(status_code=404)
+    
+    role = user['role']
+    current_status = r['status']
+    
+    # Check if this role can decline based on current status
+    flow = REALISASI_STATUS_FLOW.get(current_status)
+    if not flow or flow['approver'] != role:
+        raise HTTPException(status_code=403, detail='Tidak dapat menolak pengajuan ini')
+    
+    # Track approval history
+    approval_history = r.get('approval_history', [])
+    approval_history.append({
+        "action": "declined",
+        "by": user['name'],
+        "role": role,
+        "reason": data.reason or "-",
+        "at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    await db.realisasi_bon.update_one(
+        {"id": real_id}, 
+        {"$set": {
+            "status": "declined", 
+            "declined_by": role, 
+            "decline_reason": data.reason or "-",
+            "approval_history": approval_history,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    role_labels = {
+        "hrga": "HRGA",
+        "direktur": "Direktur",
+        "finance": "Finance"
+    }
+    
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), 
+        "user_id": r['user_id'], 
+        "message": f"Realisasi Bon '{r['no_bon_ref']}' ditolak oleh {role_labels.get(role, role)}: {data.reason or '-'}", 
+        "type": "declined", 
+        "bon_id": real_id, 
+        "is_read": False, 
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
     return {"message": "Ditolak"}
 
 @api_router.put("/realisasi/{real_id}/resubmit")
