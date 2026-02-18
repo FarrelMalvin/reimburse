@@ -309,10 +309,53 @@ async def decline_bon_sementara(bon_id: str, data: BonAction, authorization: str
     bon = await db.bon_sementara.find_one({"id": bon_id}, {"_id": 0})
     if not bon:
         raise HTTPException(status_code=404)
-    if user['role'] not in ['atasan', 'finance']:
-        raise HTTPException(status_code=403)
-    await db.bon_sementara.update_one({"id": bon_id}, {"$set": {"status": "declined", "declined_by": user['role'], "decline_reason": data.reason or "Tidak ada alasan", "updated_at": datetime.now(timezone.utc).isoformat()}})
-    await db.notifications.insert_one({"id": str(uuid.uuid4()), "user_id": bon['user_id'], "message": f"Bon Sementara '{bon['no_bon']}' ditolak oleh {user['role']}: {data.reason or '-'}", "type": "declined", "bon_id": bon_id, "is_read": False, "created_at": datetime.now(timezone.utc).isoformat()})
+    
+    role = user['role']
+    current_status = bon['status']
+    
+    # Check if this role can decline based on current status
+    flow = BON_STATUS_FLOW.get(current_status)
+    if not flow or flow['approver'] != role:
+        raise HTTPException(status_code=403, detail='Tidak dapat menolak pengajuan ini')
+    
+    # Track approval history
+    approval_history = bon.get('approval_history', [])
+    approval_history.append({
+        "action": "declined",
+        "by": user['name'],
+        "role": role,
+        "reason": data.reason or "Tidak ada alasan",
+        "at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    await db.bon_sementara.update_one(
+        {"id": bon_id}, 
+        {"$set": {
+            "status": "declined", 
+            "declined_by": role, 
+            "decline_reason": data.reason or "Tidak ada alasan",
+            "approval_history": approval_history,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    role_labels = {
+        "atasan": "Atasan Departemen",
+        "hrga": "HRGA",
+        "direktur": "Direktur",
+        "finance": "Finance"
+    }
+    
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), 
+        "user_id": bon['user_id'], 
+        "message": f"Bon Sementara '{bon['no_bon']}' ditolak oleh {role_labels.get(role, role)}: {data.reason or '-'}", 
+        "type": "declined", 
+        "bon_id": bon_id, 
+        "is_read": False, 
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
     return {"message": "Ditolak", "status": "declined"}
 
 @api_router.put("/bon-sementara/{bon_id}/resubmit")
