@@ -208,12 +208,21 @@ async def generate_no_bon():
 @api_router.get("/bon-sementara")
 async def get_bon_sementara(authorization: str = Header(None)):
     user = await get_current_user(authorization)
-    if user['role'] == 'pegawai':
+    role = user['role']
+    if role == 'pegawai':
         items = await db.bon_sementara.find({"user_id": user['id']}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    elif user['role'] == 'atasan':
+    elif role == 'atasan':
+        # Atasan sees pending (needs to approve) + already processed
         items = await db.bon_sementara.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    else:
-        items = await db.bon_sementara.find({"status": {"$in": ["approved_atasan", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    elif role == 'hrga':
+        # HRGA sees approved_atasan (needs to approve) + already processed
+        items = await db.bon_sementara.find({"status": {"$in": ["approved_atasan", "approved_hrga", "approved_direktur", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    elif role == 'direktur':
+        # Direktur sees approved_hrga (needs to approve) + already processed
+        items = await db.bon_sementara.find({"status": {"$in": ["approved_hrga", "approved_direktur", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    else:  # finance
+        # Finance sees approved_direktur (needs to approve) + already processed
+        items = await db.bon_sementara.find({"status": {"$in": ["approved_direktur", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return items
 
 @api_router.post("/bon-sementara")
