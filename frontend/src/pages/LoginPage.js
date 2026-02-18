@@ -135,6 +135,8 @@ export default function LoginPage() {
             <div className="space-y-1 text-sm text-slate-600">
               <p><span className="font-medium text-slate-700">Pegawai:</span> pegawai@kantor.com</p>
               <p><span className="font-medium text-slate-700">Atasan:</span> atasan@kantor.com</p>
+              <p><span className="font-medium text-slate-700">HRGA:</span> hrga@kantor.com</p>
+              <p><span className="font-medium text-slate-700">Direktur:</span> direktur@kantor.com</p>
               <p><span className="font-medium text-slate-700">Finance:</span> finance@kantor.com</p>
               <p className="text-xs text-slate-400 mt-1">Password: password123</p>
             </div>
