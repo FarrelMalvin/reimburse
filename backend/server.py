@@ -370,6 +370,163 @@ async def resubmit_bon_sementara(bon_id: str, authorization: str = Header(None))
     await db.bon_sementara.update_one({"id": bon_id}, {"$set": {"status": "pending", "declined_by": None, "decline_reason": None, "updated_at": datetime.now(timezone.utc).isoformat()}})
     return {"message": "Diajukan ulang"}
 
+# PDF Form Perjalanan Dinas (untuk Pegawai - bisa download setelah disetujui Atasan)
+@api_router.get("/bon-sementara/{bon_id}/pdf-perjalanan-dinas")
+async def pdf_perjalanan_dinas(bon_id: str, authorization: str = Header(None)):
+    await get_current_user(authorization)
+    bon = await db.bon_sementara.find_one({"id": bon_id}, {"_id": 0})
+    if not bon:
+        raise HTTPException(status_code=404)
+    # Bisa download setelah disetujui atasan (atau lebih)
+    valid_statuses = ['approved_atasan', 'approved_hrga', 'approved_direktur', 'approved_finance']
+    if bon['status'] not in valid_statuses:
+        raise HTTPException(status_code=400, detail='Belum disetujui atasan')
+    
+    # Get approval dates from history
+    approval_history = bon.get("approval_history", [])
+    atasan_date = "-"
+    hrga_date = "-"
+    direktur_date = "-"
+    for approval in approval_history:
+        if approval.get("role") == "atasan" and approval.get("action") == "approved":
+            atasan_date = approval.get("at", "-")[:10] if approval.get("at") else "-"
+        elif approval.get("role") == "hrga" and approval.get("action") == "approved":
+            hrga_date = approval.get("at", "-")[:10] if approval.get("at") else "-"
+        elif approval.get("role") == "direktur" and approval.get("action") == "approved":
+            direktur_date = approval.get("at", "-")[:10] if approval.get("at") else "-"
+    
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Header
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.cell(0, 8, 'FORMULIR RENCANA PERJALANAN DINAS KARYAWAN', ln=True, align='C')
+    pdf.set_font('Helvetica', '', 8)
+    pdf.cell(0, 5, f'No. Dokumen: {bon["no_bon"]}   Revisi: 00   Tgl Terbit: {bon["created_at"][:10]}', ln=True, align='C')
+    pdf.ln(5)
+    
+    # Employee & Trip Details
+    pdf.set_font('Helvetica', '', 9)
+    
+    def add_field(label, value, width1=35, width2=60):
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.cell(width1, 6, label)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.cell(5, 6, ':')
+        pdf.cell(width2, 6, str(value) if value else '-')
+    
+    # Row 1
+    add_field('Nama', bon.get('user_name', '-'))
+    add_field('Wilayah', bon.get('wilayah', '-'))
+    pdf.ln()
+    # Row 2
+    add_field('Jabatan', bon.get('jabatan', '-'))
+    add_field('NIK', bon.get('nik', '-'))
+    pdf.ln()
+    # Row 3
+    add_field('Tujuan', bon.get('tujuan', '-'))
+    add_field('Periode', f'{bon["periode_mulai"]} s/d {bon["periode_selesai"]}')
+    pdf.ln()
+    # Row 4
+    add_field('Keperluan', bon.get('keperluan', '-'), 35, 140)
+    pdf.ln(8)
+    
+    # AKOMODASI - HOTEL Section
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(0, 6, 'AKOMODASI - HOTEL', ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(2)
+    
+    ako = bon.get('akomodasi', {})
+    add_field('Kota Tujuan', ako.get('kota_tujuan', '-'))
+    add_field('Nama Hotel', ako.get('nama_hotel', '-'))
+    pdf.ln()
+    add_field('Check In', ako.get('check_in', '-'))
+    add_field('Check Out', ako.get('check_out', '-'))
+    pdf.ln()
+    add_field('Harga/Menginap', f'Rp {ako.get("harga_per_malam", 0):,.0f}')
+    add_field('Pembayaran', ako.get('pembayaran', 'Head Office'))
+    pdf.ln(8)
+    
+    # TRANSPORTASI Section
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(0, 6, 'TRANSPORTASI', ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(2)
+    
+    tb = bon.get('transportasi_berangkat', {})
+    tk = bon.get('transportasi_kembali', {})
+    
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(0, 5, 'Keberangkatan:', ln=True)
+    pdf.set_font('Helvetica', '', 9)
+    add_field('Dari', tb.get('dari_kota', '-'))
+    add_field('Ke', tb.get('ke_kota', '-'))
+    pdf.ln()
+    add_field('Transportasi', tb.get('jenis', '-'))
+    add_field('Jam Berangkat', tb.get('jam_berangkat', '-'))
+    pdf.ln(3)
+    
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(0, 5, 'Kedatangan:', ln=True)
+    pdf.set_font('Helvetica', '', 9)
+    add_field('Dari', tk.get('dari_kota', '-'))
+    add_field('Ke', tk.get('ke_kota', '-'))
+    pdf.ln()
+    add_field('Transportasi', tk.get('jenis', '-'))
+    add_field('Jam', tk.get('jam_berangkat', '-'))
+    pdf.ln(8)
+    
+    # ESTIMASI BIAYA Section
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(0, 6, 'ESTIMASI BIAYA PERJALANAN DINAS (KAS BON)', ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(2)
+    
+    estimasi_items = bon.get('estimasi_items', [])
+    pdf.set_font('Helvetica', '', 9)
+    total_est = 0
+    for i, item in enumerate(estimasi_items):
+        jumlah = item.get('jumlah', 0) or 0
+        pdf.cell(10, 5, f'{i+1}.')
+        pdf.cell(80, 5, item.get('uraian', '-'))
+        pdf.cell(0, 5, f'Rp {jumlah:,.0f}', ln=True)
+        total_est += jumlah
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(10, 5, '')
+    pdf.cell(80, 5, 'TOTAL')
+    pdf.cell(0, 5, f'Rp {total_est:,.0f}', ln=True)
+    pdf.ln(8)
+    
+    # Approval Section
+    pdf.set_font('Helvetica', '', 8)
+    pdf.cell(45, 5, 'Diajukan Oleh,', align='C')
+    pdf.cell(45, 5, 'Diketahui Oleh,', align='C')
+    pdf.cell(45, 5, 'Diperiksa Oleh,', align='C')
+    pdf.cell(45, 5, 'Disetujui Oleh,', align='C', ln=True)
+    
+    pdf.cell(45, 5, 'Karyawan', align='C')
+    pdf.cell(45, 5, 'Atasan Langsung', align='C')
+    pdf.cell(45, 5, 'HR & GA Dept.', align='C')
+    pdf.cell(45, 5, 'Direktur', align='C', ln=True)
+    pdf.ln(12)
+    
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.cell(45, 5, bon.get('user_name', '-'), align='C')
+    pdf.cell(45, 5, '________________', align='C')
+    pdf.cell(45, 5, '________________', align='C')
+    pdf.cell(45, 5, '________________', align='C', ln=True)
+    
+    pdf.set_font('Helvetica', '', 7)
+    pdf.cell(45, 4, f'Tgl: {bon["created_at"][:10]}', align='C')
+    pdf.cell(45, 4, f'Tgl: {atasan_date}', align='C')
+    pdf.cell(45, 4, f'Tgl: {hrga_date}', align='C')
+    pdf.cell(45, 4, f'Tgl: {direktur_date}', align='C')
+    
+    return Response(content=bytes(pdf.output()), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=RPD-{bon['no_bon'].replace('/', '-')}.pdf"})
+
+# PDF Register Bon Sementara (untuk Pegawai - setelah Finance approve)
 @api_router.get("/bon-sementara/{bon_id}/pdf")
 async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
     await get_current_user(authorization)
