@@ -16,8 +16,10 @@ import { Plus, CheckCircle2, XCircle, RotateCcw, Download, Trash2, UploadCloud }
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const statusCfg = {
-  pending: { label: "Menunggu", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+  pending: { label: "Menunggu Atasan", cls: "border-amber-200 bg-amber-50 text-amber-700" },
   approved_atasan: { label: "Disetujui Atasan", cls: "border-blue-200 bg-blue-50 text-blue-700" },
+  approved_hrga: { label: "Disetujui HRGA", cls: "border-indigo-200 bg-indigo-50 text-indigo-700" },
+  approved_direktur: { label: "Disetujui Direktur", cls: "border-purple-200 bg-purple-50 text-purple-700" },
   approved_finance: { label: "Disetujui Finance", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
   declined: { label: "Ditolak", cls: "border-red-200 bg-red-50 text-red-700" },
 };
