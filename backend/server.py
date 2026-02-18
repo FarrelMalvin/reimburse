@@ -378,6 +378,15 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
         raise HTTPException(status_code=404)
     if bon['status'] != 'approved_finance':
         raise HTTPException(status_code=400, detail='Belum disetujui sepenuhnya')
+    
+    # Get HRGA name from approval history
+    hrga_name = "-"
+    approval_history = bon.get("approval_history", [])
+    for approval in approval_history:
+        if approval.get("role") == "hrga" and approval.get("action") == "approved":
+            hrga_name = approval.get("by", "-")
+            break
+    
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -389,7 +398,7 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
     fields = [
         ("Tgl. Pengajuan", bon["created_at"][:10]),
         ("No. Bon Sementara", bon["no_bon"]),
-        ("Nama Pengaju", bon["user_name"]),
+        ("Nama Pengaju", hrga_name),
         ("NIK", bon.get("nik", "-")),
         ("Jabatan", bon.get("jabatan", "-")),
         ("Wilayah", bon.get("wilayah", "-")),
@@ -411,7 +420,8 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
     pdf.cell(60, 7, 'Kasir,', align='C')
     pdf.cell(60, 7, 'Disetujui,', align='C', ln=True)
     pdf.ln(18)
-    pdf.cell(60, 7, '________________', align='C')
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(60, 7, hrga_name, align='C')
     pdf.cell(60, 7, '________________', align='C')
     pdf.cell(60, 7, '________________', align='C')
     return Response(content=bytes(pdf.output()), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={bon['no_bon'].replace('/', '-')}.pdf"})
