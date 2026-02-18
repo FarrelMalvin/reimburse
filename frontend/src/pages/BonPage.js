@@ -514,15 +514,24 @@ function ApprovalView({ role }) {
 // ===================== MAIN =====================
 export default function BonPage() {
   const { user } = useAuth();
+  
+  const roleTitles = {
+    pegawai: { title: "Bon Sementara & Realisasi", subtitle: "Ajukan bon sementara dan realisasi perjalanan dinas" },
+    atasan: { title: "Persetujuan Atasan Departemen", subtitle: "Review dan setujui pengajuan bon dari pegawai" },
+    hrga: { title: "Verifikasi HRGA", subtitle: "Verifikasi pengajuan perjalanan dinas dan bon sementara" },
+    direktur: { title: "Otorisasi Direktur", subtitle: "Otorisasi pengajuan bon sementara dan realisasi" },
+    finance: { title: "Finalisasi Finance", subtitle: "Finalisasi dan pencairan bon sementara" }
+  };
+  
+  const info = roleTitles[user?.role] || roleTitles.pegawai;
+  
   return (
     <div className="max-w-6xl" data-testid="bon-page">
       <div className="mb-5">
         <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          {user?.role === "pegawai" ? "Bon Sementara & Realisasi" : user?.role === "atasan" ? "Persetujuan Bon" : "Finalisasi Bon"}
+          {info.title}
         </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          {user?.role === "pegawai" ? "Ajukan bon sementara dan realisasi perjalanan dinas" : "Review dan setujui pengajuan bon"}
-        </p>
+        <p className="text-sm text-slate-500 mt-1">{info.subtitle}</p>
       </div>
       {user?.role === "pegawai" ? <PegawaiView /> : <ApprovalView role={user?.role} />}
     </div>
