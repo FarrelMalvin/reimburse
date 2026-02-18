@@ -489,17 +489,52 @@ async def approve_realisasi(real_id: str, authorization: str = Header(None)):
     r = await db.realisasi_bon.find_one({"id": real_id}, {"_id": 0})
     if not r:
         raise HTTPException(status_code=404)
-    if user['role'] == 'atasan':
-        if r['status'] != 'pending': raise HTTPException(status_code=400)
-        ns = 'approved_atasan'
-    elif user['role'] == 'finance':
-        if r['status'] != 'approved_atasan': raise HTTPException(status_code=400)
-        ns = 'approved_finance'
-    else:
-        raise HTTPException(status_code=403)
-    await db.realisasi_bon.update_one({"id": real_id}, {"$set": {"status": ns, "updated_at": datetime.now(timezone.utc).isoformat()}})
-    await db.notifications.insert_one({"id": str(uuid.uuid4()), "user_id": r['user_id'], "message": f"Realisasi Bon '{r['no_bon_ref']}' disetujui oleh {user['role']}", "type": "approved", "bon_id": real_id, "is_read": False, "created_at": datetime.now(timezone.utc).isoformat()})
-    return {"message": "Disetujui", "status": ns}
+    
+    role = user['role']
+    current_status = r['status']
+    
+    # Check if user can approve based on status flow
+    flow = REALISASI_STATUS_FLOW.get(current_status)
+    if not flow or flow['approver'] != role:
+        raise HTTPException(status_code=400, detail=f'Tidak dapat disetujui. Status saat ini: {current_status}, Role: {role}')
+    
+    new_status = flow['next']
+    
+    # Track approval history
+    approval_history = r.get('approval_history', [])
+    approval_history.append({
+        "action": "approved",
+        "by": user['name'],
+        "role": role,
+        "at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    await db.realisasi_bon.update_one(
+        {"id": real_id}, 
+        {"$set": {
+            "status": new_status,
+            "approval_history": approval_history,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    status_labels = {
+        "approved_hrga": "HRGA",
+        "approved_direktur": "Direktur",
+        "approved_finance": "Finance (Final)"
+    }
+    
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), 
+        "user_id": r['user_id'], 
+        "message": f"Realisasi Bon '{r['no_bon_ref']}' disetujui oleh {status_labels.get(new_status, role)}", 
+        "type": "approved", 
+        "bon_id": real_id, 
+        "is_read": False, 
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": "Disetujui", "status": new_status}
 
 @api_router.put("/realisasi/{real_id}/decline")
 async def decline_realisasi(real_id: str, data: BonAction, authorization: str = Header(None)):
