@@ -366,7 +366,7 @@ function PegawaiView() {
   );
 }
 
-// ===================== APPROVAL VIEW (Atasan / Finance) =====================
+// ===================== APPROVAL VIEW (Atasan / HRGA / Direktur / Finance) =====================
 function ApprovalView({ role }) {
   const [bons, setBons] = useState([]);
   const [realisasi, setRealisasi] = useState([]);
@@ -382,8 +382,30 @@ function ApprovalView({ role }) {
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const pendingBons = bons.filter(b => role === "atasan" ? b.status === "pending" : b.status === "approved_atasan");
-  const pendingRealisasi = realisasi.filter(r => role === "atasan" ? r.status === "pending" : r.status === "approved_atasan");
+  // Define which status each role needs to approve
+  const bonPendingStatus = {
+    atasan: "pending",
+    hrga: "approved_atasan",
+    direktur: "approved_hrga",
+    finance: "approved_direktur"
+  };
+  
+  const realisasiPendingStatus = {
+    hrga: "pending",
+    direktur: "approved_hrga",
+    finance: "approved_direktur"
+  };
+
+  const pendingBons = bons.filter(b => b.status === bonPendingStatus[role]);
+  const pendingRealisasi = realisasi.filter(r => r.status === realisasiPendingStatus[role]);
+  
+  // Role labels for display
+  const roleLabels = {
+    atasan: "Atasan Departemen",
+    hrga: "HRGA",
+    direktur: "Direktur",
+    finance: "Finance"
+  };
 
   const approve = async (id, type) => {
     try {
@@ -421,7 +443,7 @@ function ApprovalView({ role }) {
           <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
         </TableRow></TableHeader>
         <TableBody>
-          {items.length === 0 ? (<TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-400">Tidak ada yang menunggu</TableCell></TableRow>) :
+          {items.length === 0 ? (<TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-400">Tidak ada yang menunggu persetujuan {roleLabels[role]}</TableCell></TableRow>) :
           items.map(item => (
             <TableRow key={item.id} className="border-slate-50" data-testid={`approve-row-${item.id}`}>
               <TableCell className="text-sm font-medium text-slate-900">{item.user_name}</TableCell>
@@ -442,16 +464,19 @@ function ApprovalView({ role }) {
 
   const historyBons = bons.filter(b => !pendingBons.includes(b));
   const historyRealisasi = realisasi.filter(r => !pendingRealisasi.includes(r));
+  
+  // Atasan tidak terlibat dalam realisasi bon
+  const showRealisasiTab = role !== 'atasan';
 
   return (
     <div className="space-y-6">
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList data-testid="approval-tabs">
           <TabsTrigger value="bon">Bon Sementara</TabsTrigger>
-          <TabsTrigger value="realisasi">Realisasi Bon</TabsTrigger>
+          {showRealisasiTab && <TabsTrigger value="realisasi">Realisasi Bon</TabsTrigger>}
         </TabsList>
         <TabsContent value="bon" className="space-y-4">
-          {renderApprovalTable(pendingBons, "bon-sementara", "Menunggu Persetujuan")}
+          {renderApprovalTable(pendingBons, "bon-sementara", `Menunggu Persetujuan ${roleLabels[role]}`)}
           {historyBons.length > 0 && (
             <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
               <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Bon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
@@ -459,15 +484,17 @@ function ApprovalView({ role }) {
               </Table></CardContent></Card>
           )}
         </TabsContent>
-        <TabsContent value="realisasi" className="space-y-4">
-          {renderApprovalTable(pendingRealisasi, "realisasi", "Menunggu Persetujuan")}
-          {historyRealisasi.length > 0 && (
-            <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
-              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref.</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
-              <TableBody>{historyRealisasi.map(r => (<TableRow key={r.id} className="border-slate-50"><TableCell className="text-sm font-mono">{r.no_bon_ref}</TableCell><TableCell className="text-sm">{r.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(r.total_realisasi)}</TableCell><TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell><TableCell><StatusBadge status={r.status} /></TableCell><TableCell>{r.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `real-${r.no_bon_ref}`)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
-              </Table></CardContent></Card>
-          )}
-        </TabsContent>
+        {showRealisasiTab && (
+          <TabsContent value="realisasi" className="space-y-4">
+            {renderApprovalTable(pendingRealisasi, "realisasi", `Menunggu Persetujuan ${roleLabels[role]}`)}
+            {historyRealisasi.length > 0 && (
+              <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
+                <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref.</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
+                <TableBody>{historyRealisasi.map(r => (<TableRow key={r.id} className="border-slate-50"><TableCell className="text-sm font-mono">{r.no_bon_ref}</TableCell><TableCell className="text-sm">{r.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(r.total_realisasi)}</TableCell><TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell><TableCell><StatusBadge status={r.status} /></TableCell><TableCell>{r.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `real-${r.no_bon_ref}`)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
+                </Table></CardContent></Card>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={!!showDecline} onOpenChange={() => { setShowDecline(null); setDeclineReason(""); }}>
