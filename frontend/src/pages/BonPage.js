@@ -519,14 +519,14 @@ function ApprovalView({ role }) {
     <div className="space-y-6">
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList data-testid="approval-tabs">
-          <TabsTrigger value="bon">Bon Sementara</TabsTrigger>
+          <TabsTrigger value="bon">Perjalanan Dinas</TabsTrigger>
           {showRealisasiTab && <TabsTrigger value="realisasi">Realisasi Bon</TabsTrigger>}
         </TabsList>
         <TabsContent value="bon" className="space-y-4">
           {renderApprovalTable(pendingBons, "bon-sementara", `Menunggu Persetujuan ${roleLabels[role]}`)}
           {historyBons.length > 0 && (
             <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
-              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Bon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
+              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Dokumen</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
               <TableBody>{historyBons.map(b => (<TableRow key={b.id} className="border-slate-50"><TableCell className="text-sm font-mono">{b.no_bon}</TableCell><TableCell className="text-sm">{b.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(b.jumlah)}</TableCell><TableCell><StatusBadge status={b.status} /></TableCell><TableCell>{b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
               </Table></CardContent></Card>
           )}
