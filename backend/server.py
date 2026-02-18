@@ -437,12 +437,21 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
 @api_router.get("/realisasi")
 async def get_realisasi(authorization: str = Header(None)):
     user = await get_current_user(authorization)
-    if user['role'] == 'pegawai':
+    role = user['role']
+    if role == 'pegawai':
         items = await db.realisasi_bon.find({"user_id": user['id']}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    elif user['role'] == 'atasan':
+    elif role == 'atasan':
+        # Atasan tidak terlibat dalam realisasi, tapi bisa lihat semua
         items = await db.realisasi_bon.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    else:
-        items = await db.realisasi_bon.find({"status": {"$in": ["approved_atasan", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    elif role == 'hrga':
+        # HRGA approve realisasi pertama kali (pending -> approved_hrga)
+        items = await db.realisasi_bon.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    elif role == 'direktur':
+        # Direktur approve setelah HRGA
+        items = await db.realisasi_bon.find({"status": {"$in": ["approved_hrga", "approved_direktur", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    else:  # finance
+        # Finance approve terakhir
+        items = await db.realisasi_bon.find({"status": {"$in": ["approved_direktur", "approved_finance", "declined"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return items
 
 @api_router.get("/bon-sementara-approved")
