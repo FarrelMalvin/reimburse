@@ -151,10 +151,11 @@ function PegawaiView() {
     } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); }
   };
 
-  const downloadPdf = async (id, type, name) => {
+  const downloadPdf = async (id, type, name, endpoint = "/pdf") => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `${name}.pdf`; a.click();
