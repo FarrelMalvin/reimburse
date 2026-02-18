@@ -563,11 +563,11 @@ export default function BonPage() {
   const { user } = useAuth();
   
   const roleTitles = {
-    pegawai: { title: "Bon Sementara & Realisasi", subtitle: "Ajukan bon sementara dan realisasi perjalanan dinas" },
-    atasan: { title: "Persetujuan Atasan Departemen", subtitle: "Review dan setujui pengajuan bon dari pegawai" },
-    hrga: { title: "Verifikasi HRGA", subtitle: "Verifikasi pengajuan perjalanan dinas dan bon sementara" },
-    direktur: { title: "Otorisasi Direktur", subtitle: "Otorisasi pengajuan bon sementara dan realisasi" },
-    finance: { title: "Finalisasi Finance", subtitle: "Finalisasi dan pencairan bon sementara" }
+    pegawai: { title: "Perjalanan Dinas & Realisasi", subtitle: "Ajukan perjalanan dinas dan realisasi bon" },
+    atasan: { title: "Persetujuan Atasan Departemen", subtitle: "Review dan setujui pengajuan perjalanan dinas dari pegawai" },
+    hrga: { title: "Verifikasi HRGA", subtitle: "Verifikasi pengajuan perjalanan dinas dan realisasi bon" },
+    direktur: { title: "Otorisasi Direktur", subtitle: "Otorisasi pengajuan perjalanan dinas dan realisasi" },
+    finance: { title: "Finalisasi Finance", subtitle: "Finalisasi dan pencairan bon" }
   };
   
   const info = roleTitles[user?.role] || roleTitles.pegawai;
