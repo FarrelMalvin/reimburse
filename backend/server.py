@@ -157,6 +157,8 @@ async def seed_data():
     users = [
         {'id': str(uuid.uuid4()), 'name': 'Ahmad Pegawai', 'email': 'pegawai@kantor.com', 'password': pwd_context.hash('password123'), 'role': 'pegawai'},
         {'id': str(uuid.uuid4()), 'name': 'Budi Atasan', 'email': 'atasan@kantor.com', 'password': pwd_context.hash('password123'), 'role': 'atasan'},
+        {'id': str(uuid.uuid4()), 'name': 'Dewi HRGA', 'email': 'hrga@kantor.com', 'password': pwd_context.hash('password123'), 'role': 'hrga'},
+        {'id': str(uuid.uuid4()), 'name': 'Eko Direktur', 'email': 'direktur@kantor.com', 'password': pwd_context.hash('password123'), 'role': 'direktur'},
         {'id': str(uuid.uuid4()), 'name': 'Citra Finance', 'email': 'finance@kantor.com', 'password': pwd_context.hash('password123'), 'role': 'finance'},
     ]
     await db.users.insert_many(users)
