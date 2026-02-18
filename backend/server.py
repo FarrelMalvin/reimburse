@@ -62,12 +62,6 @@ class TransportasiData(BaseModel):
     ke_kota: str = ""
     jam_berangkat: str = ""
 
-class EstimasiBiaya(BaseModel):
-    biaya_konsumsi: float = 0
-    biaya_transportasi: float = 0
-    biaya_entertainment: float = 0
-    biaya_lainnya: float = 0
-
 class EstimasiItem(BaseModel):
     uraian: str = ""
     jumlah: float = 0
