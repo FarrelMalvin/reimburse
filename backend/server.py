@@ -405,28 +405,6 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
         pdf.cell(5, 7, ':')
         pdf.cell(0, 7, str(val), ln=True)
     
-    # Estimasi items custom
-    estimasi_items = bon.get("estimasi_items", [])
-    if estimasi_items:
-        pdf.ln(5)
-        pdf.set_font('Helvetica', 'B', 11)
-        pdf.cell(0, 8, 'ESTIMASI BIAYA PERJALANAN DINAS (KAS BON)', ln=True)
-        pdf.set_draw_color(180, 180, 180)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(3)
-        pdf.set_font('Helvetica', '', 10)
-        total_est = 0
-        for i, item in enumerate(estimasi_items):
-            jumlah = item.get("jumlah", 0) or 0
-            pdf.cell(10, 7, f'{i+1}.')
-            pdf.cell(80, 7, item.get("uraian", "-"))
-            pdf.cell(0, 7, f'Rp {jumlah:,.0f}', ln=True)
-            total_est += jumlah
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.cell(10, 7, '')
-        pdf.cell(80, 7, 'TOTAL')
-        pdf.cell(0, 7, f'Rp {total_est:,.0f}', ln=True)
-    
     pdf.ln(15)
     pdf.set_font('Helvetica', '', 9)
     pdf.cell(60, 7, 'Yang Membawa,', align='C')
