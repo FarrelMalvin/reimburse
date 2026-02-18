@@ -199,9 +199,12 @@ function PegawaiView() {
                   <TableCell className="text-sm font-medium text-slate-900">{fmt(b.jumlah)}</TableCell>
                   <TableCell><StatusBadge status={b.status} />{b.decline_reason && <p className="text-xs text-red-500 mt-1">{b.decline_reason}</p>}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {b.status === "declined" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-blue-600" onClick={() => setShowResubmit({ ...b, type: "bon-sementara" })} data-testid={`resubmit-bon-${b.id}`}><RotateCcw className="h-3 w-3" />Ulang</Button>}
-                      {b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)} data-testid={`pdf-bon-${b.id}`}><Download className="h-3 w-3" />PDF</Button>}
+                      {["approved_atasan", "approved_hrga", "approved_direktur", "approved_finance"].includes(b.status) && (
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-blue-600" onClick={() => downloadPdf(b.id, "bon-sementara", `RPD-${b.no_bon}`, "/pdf-perjalanan-dinas")} data-testid={`pdf-rpd-${b.id}`}><FileText className="h-3 w-3" />Form RPD</Button>
+                      )}
+                      {b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)} data-testid={`pdf-bon-${b.id}`}><Download className="h-3 w-3" />Bon</Button>}
                     </div>
                   </TableCell>
                 </TableRow>
