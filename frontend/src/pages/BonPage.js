@@ -167,22 +167,22 @@ function PegawaiView() {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex items-center justify-between flex-wrap gap-3">
           <TabsList data-testid="bon-tabs">
-            <TabsTrigger value="bon" data-testid="tab-bon-sementara">Bon Sementara</TabsTrigger>
+            <TabsTrigger value="bon" data-testid="tab-bon-sementara">Perjalanan Dinas</TabsTrigger>
             <TabsTrigger value="realisasi" data-testid="tab-realisasi">Realisasi Bon</TabsTrigger>
           </TabsList>
           {tab === "bon" && (
-            <Button onClick={() => setShowCreateBon(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-bon-btn"><Plus className="h-4 w-4" /> Ajukan Bon Sementara</Button>
+            <Button onClick={() => setShowCreateBon(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-bon-btn"><Plus className="h-4 w-4" /> Ajukan Perjalanan Dinas</Button>
           )}
           {tab === "realisasi" && (
             <Button onClick={() => setShowCreateReal(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-realisasi-btn"><Plus className="h-4 w-4" /> Buat Realisasi</Button>
           )}
         </div>
 
-        {/* BON SEMENTARA TABLE */}
+        {/* PERJALANAN DINAS TABLE */}
         <TabsContent value="bon">
           <Card className="border-slate-100 shadow-sm rounded-xl"><CardContent className="p-0">
             <Table><TableHeader><TableRow className="border-slate-100">
-              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Bon</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Dokumen</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tujuan</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Keperluan</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
@@ -190,7 +190,7 @@ function PegawaiView() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {bons.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Belum ada bon sementara</TableCell></TableRow>) :
+              {bons.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Belum ada pengajuan perjalanan dinas</TableCell></TableRow>) :
               bons.map(b => (
                 <TableRow key={b.id} className="border-slate-50" data-testid={`bon-row-${b.id}`}>
                   <TableCell className="text-sm font-mono text-slate-700">{b.no_bon}</TableCell>
