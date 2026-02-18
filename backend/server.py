@@ -174,12 +174,22 @@ async def get_dashboard_stats(authorization: str = Header(None)):
         cuti = await db.cuti.count_documents({"user_id": user['id']})
     elif r == 'atasan':
         total_bon = await db.bon_sementara.count_documents({"status": "pending"})
-        total_realisasi = await db.realisasi_bon.count_documents({"status": "pending"})
+        total_realisasi = 0  # Atasan tidak approve realisasi
         pengaduan = await db.pengaduan.count_documents({"status": "pending"})
         cuti = await db.cuti.count_documents({"status": "pending"})
-    else:
+    elif r == 'hrga':
         total_bon = await db.bon_sementara.count_documents({"status": "approved_atasan"})
-        total_realisasi = await db.realisasi_bon.count_documents({"status": "approved_atasan"})
+        total_realisasi = await db.realisasi_bon.count_documents({"status": "pending"})
+        pengaduan = await db.pengaduan.count_documents({})
+        cuti = await db.cuti.count_documents({})
+    elif r == 'direktur':
+        total_bon = await db.bon_sementara.count_documents({"status": "approved_hrga"})
+        total_realisasi = await db.realisasi_bon.count_documents({"status": "approved_hrga"})
+        pengaduan = 0
+        cuti = 0
+    else:  # finance
+        total_bon = await db.bon_sementara.count_documents({"status": "approved_direktur"})
+        total_realisasi = await db.realisasi_bon.count_documents({"status": "approved_direktur"})
         pengaduan = await db.pengaduan.count_documents({})
         cuti = await db.cuti.count_documents({})
     inventaris = await db.inventaris.count_documents({})
