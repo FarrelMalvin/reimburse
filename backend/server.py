@@ -21,6 +21,25 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'kantorplus-secret-2024-production')
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
+# Status flow untuk Bon Sementara (Pengajuan Perjalanan Dinas)
+# pending -> approved_atasan -> approved_hrga -> approved_direktur -> approved_finance
+BON_STATUS_FLOW = {
+    "pending": {"next": "approved_atasan", "approver": "atasan"},
+    "approved_atasan": {"next": "approved_hrga", "approver": "hrga"},
+    "approved_hrga": {"next": "approved_direktur", "approver": "direktur"},
+    "approved_direktur": {"next": "approved_finance", "approver": "finance"},
+    "approved_finance": {"next": None, "approver": None}
+}
+
+# Status flow untuk Realisasi Bon
+# pending -> approved_hrga -> approved_direktur -> approved_finance
+REALISASI_STATUS_FLOW = {
+    "pending": {"next": "approved_hrga", "approver": "hrga"},
+    "approved_hrga": {"next": "approved_direktur", "approver": "direktur"},
+    "approved_direktur": {"next": "approved_finance", "approver": "finance"},
+    "approved_finance": {"next": None, "approver": None}
+}
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
