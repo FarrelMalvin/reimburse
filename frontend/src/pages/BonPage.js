@@ -6,696 +6,496 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import {
-  Plus,
-  UploadCloud,
-  CheckCircle2,
-  XCircle,
-  RotateCcw,
-  Download,
-  Eye,
-  Receipt,
-  Image as ImageIcon,
-} from "lucide-react";
+import { Plus, CheckCircle2, XCircle, RotateCcw, Download, Trash2, UploadCloud } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-const statusConfig = {
-  pending: { label: "Menunggu", className: "border-amber-200 bg-amber-50 text-amber-700" },
-  approved_atasan: { label: "Disetujui Atasan", className: "border-blue-200 bg-blue-50 text-blue-700" },
-  approved_finance: { label: "Disetujui Finance", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  declined: { label: "Ditolak", className: "border-red-200 bg-red-50 text-red-700" },
+const statusCfg = {
+  pending: { label: "Menunggu", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+  approved_atasan: { label: "Disetujui Atasan", cls: "border-blue-200 bg-blue-50 text-blue-700" },
+  approved_finance: { label: "Disetujui Finance", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  declined: { label: "Ditolak", cls: "border-red-200 bg-red-50 text-red-700" },
 };
-
 function StatusBadge({ status }) {
-  const cfg = statusConfig[status] || statusConfig.pending;
-  return (
-    <Badge variant="outline" className={cfg.className} data-testid={`status-badge-${status}`}>
-      {cfg.label}
-    </Badge>
-  );
+  const c = statusCfg[status] || statusCfg.pending;
+  return <Badge variant="outline" className={c.cls} data-testid={`status-${status}`}>{c.label}</Badge>;
 }
+function fmt(n) { return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n); }
 
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
-}
-
-// --- Pegawai View ---
-function PegawaiBonView() {
+// ===================== PEGAWAI VIEW =====================
+function PegawaiView() {
+  const [tab, setTab] = useState("bon");
   const [bons, setBons] = useState([]);
-  const [showCreate, setShowCreate] = useState(false);
+  const [realisasi, setRealisasi] = useState([]);
+  const [approvedBons, setApprovedBons] = useState([]);
+  const [showCreateBon, setShowCreateBon] = useState(false);
+  const [showCreateReal, setShowCreateReal] = useState(false);
   const [showResubmit, setShowResubmit] = useState(null);
-  const [showPhoto, setShowPhoto] = useState(null);
-  const [form, setForm] = useState({ judul: "", deskripsi: "", jumlah: "", foto: null });
-  const [fotoPreview, setFotoPreview] = useState(null);
+  const [bonForm, setBonForm] = useState({ nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "", jumlah: "", biaya_konsumsi: "", biaya_transportasi: "", biaya_entertainment: "", biaya_lainnya: "", akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", foto: null });
+  const [realForm, setRealForm] = useState({ bon_sementara_id: "", periode: "", items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }], bukti_transfer: null });
   const [loading, setLoading] = useState(false);
 
-  const fetchBons = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await api.get("/bon");
-      setBons(res.data);
-    } catch {
-      toast.error("Gagal memuat data bon");
-    }
+      const [b, r, a] = await Promise.all([api.get("/bon-sementara"), api.get("/realisasi"), api.get("/bon-sementara-approved")]);
+      setBons(b.data); setRealisasi(r.data); setApprovedBons(a.data);
+    } catch { toast.error("Gagal memuat data"); }
   }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => { fetchBons(); }, [fetchBons]);
-
-  const handleFileChange = (e) => {
+  const handleFileChange = (e, setter, field) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ukuran file maksimal 5MB");
-      return;
-    }
     const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({ ...prev, foto: reader.result }));
-      setFotoPreview(reader.result);
-    };
+    reader.onload = () => setter(prev => ({ ...prev, [field]: reader.result }));
     reader.readAsDataURL(file);
   };
 
-  const handleCreate = async () => {
-    if (!form.judul || !form.deskripsi || !form.jumlah) {
-      toast.error("Semua field wajib diisi");
-      return;
+  const calcTotal = () => {
+    const e = bonForm;
+    return (parseFloat(e.biaya_konsumsi) || 0) + (parseFloat(e.biaya_transportasi) || 0) + (parseFloat(e.biaya_entertainment) || 0) + (parseFloat(e.biaya_lainnya) || 0);
+  };
+
+  const submitBon = async () => {
+    if (!bonForm.tujuan || !bonForm.periode_mulai || !bonForm.periode_selesai || !bonForm.keperluan) {
+      toast.error("Field wajib belum diisi"); return;
     }
     setLoading(true);
     try {
-      await api.post("/bon", {
-        judul: form.judul,
-        deskripsi: form.deskripsi,
-        jumlah: parseFloat(form.jumlah),
-        foto: form.foto,
+      const total = calcTotal();
+      await api.post("/bon-sementara", {
+        nik: bonForm.nik, jabatan: bonForm.jabatan, wilayah: bonForm.wilayah, tujuan: bonForm.tujuan,
+        periode_mulai: bonForm.periode_mulai, periode_selesai: bonForm.periode_selesai, keperluan: bonForm.keperluan,
+        jumlah: total || parseFloat(bonForm.jumlah) || 0,
+        akomodasi: { kota_tujuan: bonForm.akomodasi_kota, nama_hotel: bonForm.akomodasi_hotel, check_in: bonForm.akomodasi_checkin, check_out: bonForm.akomodasi_checkout, harga_per_malam: parseFloat(bonForm.akomodasi_harga) || 0, pembayaran: bonForm.akomodasi_bayar },
+        transportasi_berangkat: { jenis: bonForm.trans_berangkat_jenis, dari_kota: bonForm.trans_berangkat_dari, ke_kota: bonForm.trans_berangkat_ke, jam_berangkat: bonForm.trans_berangkat_jam },
+        transportasi_kembali: { jenis: bonForm.trans_kembali_jenis, dari_kota: bonForm.trans_kembali_dari, ke_kota: bonForm.trans_kembali_ke, jam_berangkat: bonForm.trans_kembali_jam },
+        estimasi_biaya: { biaya_konsumsi: parseFloat(bonForm.biaya_konsumsi) || 0, biaya_transportasi: parseFloat(bonForm.biaya_transportasi) || 0, biaya_entertainment: parseFloat(bonForm.biaya_entertainment) || 0, biaya_lainnya: parseFloat(bonForm.biaya_lainnya) || 0 },
+        foto: bonForm.foto,
       });
-      toast.success("Bon berhasil dibuat");
-      setShowCreate(false);
-      setForm({ judul: "", deskripsi: "", jumlah: "", foto: null });
-      setFotoPreview(null);
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal membuat bon");
-    } finally {
-      setLoading(false);
-    }
+      toast.success("Bon Sementara berhasil diajukan");
+      setShowCreateBon(false);
+      setBonForm({ nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "", jumlah: "", biaya_konsumsi: "", biaya_transportasi: "", biaya_entertainment: "", biaya_lainnya: "", akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", foto: null });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); } finally { setLoading(false); }
   };
 
-  const handleResubmit = async (bonId) => {
+  const addRealItem = () => setRealForm(p => ({ ...p, items: [...p.items, { tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }] }));
+  const removeRealItem = (idx) => setRealForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }));
+  const updateRealItem = (idx, field, val) => {
+    setRealForm(p => {
+      const items = [...p.items];
+      items[idx] = { ...items[idx], [field]: val };
+      if (field === "quantity" || field === "harga_per_unit") {
+        items[idx].total = (parseFloat(items[idx].quantity) || 0) * (parseFloat(items[idx].harga_per_unit) || 0);
+      }
+      return { ...p, items };
+    });
+  };
+
+  const submitRealisasi = async () => {
+    if (!realForm.bon_sementara_id || !realForm.periode || realForm.items.length === 0) {
+      toast.error("Lengkapi form realisasi"); return;
+    }
+    setLoading(true);
     try {
-      await api.put(`/bon/${bonId}/resubmit`);
-      toast.success("Bon berhasil diajukan ulang");
-      setShowResubmit(null);
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal mengajukan ulang");
-    }
+      await api.post("/realisasi", { bon_sementara_id: realForm.bon_sementara_id, periode: realForm.periode, items: realForm.items.map(i => ({ ...i, quantity: parseInt(i.quantity) || 1, harga_per_unit: parseFloat(i.harga_per_unit) || 0, total: parseFloat(i.total) || 0 })), bukti_transfer: realForm.bukti_transfer });
+      toast.success("Realisasi berhasil diajukan");
+      setShowCreateReal(false);
+      setRealForm({ bon_sementara_id: "", periode: "", items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }], bukti_transfer: null });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); } finally { setLoading(false); }
   };
 
-  const handleDownloadPdf = async (bonId) => {
+  const handleResubmit = async (id, type) => {
+    try {
+      await api.put(`/${type}/${id}/resubmit`);
+      toast.success("Diajukan ulang"); setShowResubmit(null); fetchData();
+    } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); }
+  };
+
+  const downloadPdf = async (id, type, name) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${BACKEND_URL}/api/bon/${bonId}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bon-${bonId.slice(0, 8)}.pdf`;
-      a.click();
+      const a = document.createElement("a"); a.href = url; a.download = `${name}.pdf`; a.click();
       window.URL.revokeObjectURL(url);
-      toast.success("PDF berhasil diunduh");
-    } catch {
-      toast.error("Gagal mengunduh PDF");
-    }
+    } catch { toast.error("Gagal download PDF"); }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Bon Saya
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">Ajukan dan pantau bon reimbursement Anda</p>
+      <Tabs value={tab} onValueChange={setTab}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <TabsList data-testid="bon-tabs">
+            <TabsTrigger value="bon" data-testid="tab-bon-sementara">Bon Sementara</TabsTrigger>
+            <TabsTrigger value="realisasi" data-testid="tab-realisasi">Realisasi Bon</TabsTrigger>
+          </TabsList>
+          {tab === "bon" && (
+            <Button onClick={() => setShowCreateBon(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-bon-btn"><Plus className="h-4 w-4" /> Ajukan Bon Sementara</Button>
+          )}
+          {tab === "realisasi" && (
+            <Button onClick={() => setShowCreateReal(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-realisasi-btn"><Plus className="h-4 w-4" /> Buat Realisasi</Button>
+          )}
         </div>
-        <Button onClick={() => setShowCreate(true)} className="bg-slate-900 hover:bg-slate-800 gap-2" data-testid="create-bon-btn">
-          <Plus className="h-4 w-4" /> Buat Bon
-        </Button>
-      </div>
 
-      {/* Bon Table */}
-      <Card className="border-slate-100 shadow-sm rounded-xl">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-slate-100">
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Judul</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
+        {/* BON SEMENTARA TABLE */}
+        <TabsContent value="bon">
+          <Card className="border-slate-100 shadow-sm rounded-xl"><CardContent className="p-0">
+            <Table><TableHeader><TableRow className="border-slate-100">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Bon</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tujuan</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Keperluan</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
+            </TableRow></TableHeader>
             <TableBody>
-              {bons.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-slate-400">
-                    <Receipt className="h-10 w-10 mx-auto mb-2 text-slate-300" />
-                    <p>Belum ada bon. Buat bon pertama Anda!</p>
+              {bons.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Belum ada bon sementara</TableCell></TableRow>) :
+              bons.map(b => (
+                <TableRow key={b.id} className="border-slate-50" data-testid={`bon-row-${b.id}`}>
+                  <TableCell className="text-sm font-mono text-slate-700">{b.no_bon}</TableCell>
+                  <TableCell className="text-sm text-slate-900">{b.tujuan}</TableCell>
+                  <TableCell className="text-sm text-slate-500 max-w-[200px] truncate">{b.keperluan}</TableCell>
+                  <TableCell className="text-sm font-medium text-slate-900">{fmt(b.jumlah)}</TableCell>
+                  <TableCell><StatusBadge status={b.status} />{b.decline_reason && <p className="text-xs text-red-500 mt-1">{b.decline_reason}</p>}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {b.status === "declined" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-blue-600" onClick={() => setShowResubmit({ ...b, type: "bon-sementara" })} data-testid={`resubmit-bon-${b.id}`}><RotateCcw className="h-3 w-3" />Ulang</Button>}
+                      {b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)} data-testid={`pdf-bon-${b.id}`}><Download className="h-3 w-3" />PDF</Button>}
+                    </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                bons.map((bon) => (
-                  <TableRow key={bon.id} className="border-slate-50" data-testid={`bon-row-${bon.id}`}>
-                    <TableCell>
-                      <p className="font-medium text-slate-900 text-sm">{bon.judul}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{bon.deskripsi}</p>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900">{formatCurrency(bon.jumlah)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={bon.status} />
-                      {bon.status === "declined" && bon.decline_reason && (
-                        <p className="text-xs text-red-500 mt-1">Alasan: {bon.decline_reason}</p>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-slate-500">{new Date(bon.created_at).toLocaleDateString("id-ID")}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {bon.foto && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowPhoto(bon.foto)} data-testid={`view-photo-${bon.id}`}>
-                            <Eye className="h-4 w-4 text-slate-500" />
-                          </Button>
-                        )}
-                        {bon.status === "declined" && (
-                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setShowResubmit(bon)} data-testid={`resubmit-btn-${bon.id}`}>
-                            <RotateCcw className="h-3.5 w-3.5" /> Ajukan Ulang
-                          </Button>
-                        )}
-                        {bon.status === "approved_finance" && (
-                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleDownloadPdf(bon.id)} data-testid={`download-pdf-${bon.id}`}>
-                            <Download className="h-3.5 w-3.5" /> PDF
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody></Table>
+          </CardContent></Card>
+        </TabsContent>
 
-      {/* Create Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-lg" data-testid="create-bon-dialog">
+        {/* REALISASI TABLE */}
+        <TabsContent value="realisasi">
+          <Card className="border-slate-100 shadow-sm rounded-xl"><CardContent className="p-0">
+            <Table><TableHeader><TableRow className="border-slate-100">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref. No. Bon</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Periode</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Realisasi</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa Bon</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {realisasi.length === 0 ? (<TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Belum ada realisasi</TableCell></TableRow>) :
+              realisasi.map(r => (
+                <TableRow key={r.id} className="border-slate-50" data-testid={`real-row-${r.id}`}>
+                  <TableCell className="text-sm font-mono text-slate-700">{r.no_bon_ref}</TableCell>
+                  <TableCell className="text-sm text-slate-700">{r.periode}</TableCell>
+                  <TableCell className="text-sm font-medium text-slate-900">{fmt(r.total_realisasi)}</TableCell>
+                  <TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell>
+                  <TableCell><StatusBadge status={r.status} /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {r.status === "declined" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-blue-600" onClick={() => setShowResubmit({ ...r, type: "realisasi" })} data-testid={`resubmit-real-${r.id}`}><RotateCcw className="h-3 w-3" />Ulang</Button>}
+                      {r.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `realisasi-${r.no_bon_ref}`)} data-testid={`pdf-real-${r.id}`}><Download className="h-3 w-3" />PDF</Button>}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody></Table>
+          </CardContent></Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* CREATE BON DIALOG */}
+      <Dialog open={showCreateBon} onOpenChange={setShowCreateBon}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="create-bon-dialog">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Buat Bon Baru</DialogTitle>
-            <DialogDescription>Isi detail bon reimbursement Anda</DialogDescription>
+            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pengajuan Perjalanan Dinas & Bon Sementara</DialogTitle>
+            <DialogDescription>Isi sesuai Form Perjalanan Dinas Karyawan</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Judul</Label>
-              <Input placeholder="Contoh: Biaya Transport Meeting" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} data-testid="bon-judul-input" />
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>NIK</Label><Input placeholder="NIK" value={bonForm.nik} onChange={e => setBonForm(p => ({ ...p, nik: e.target.value }))} data-testid="bon-nik" /></div>
+              <div><Label>Jabatan</Label><Input placeholder="Jabatan" value={bonForm.jabatan} onChange={e => setBonForm(p => ({ ...p, jabatan: e.target.value }))} data-testid="bon-jabatan" /></div>
+              <div><Label>Wilayah</Label><Input placeholder="Wilayah" value={bonForm.wilayah} onChange={e => setBonForm(p => ({ ...p, wilayah: e.target.value }))} data-testid="bon-wilayah" /></div>
+              <div><Label>Tujuan *</Label><Input placeholder="Kota tujuan" value={bonForm.tujuan} onChange={e => setBonForm(p => ({ ...p, tujuan: e.target.value }))} data-testid="bon-tujuan" /></div>
+              <div><Label>Periode Mulai *</Label><Input type="date" value={bonForm.periode_mulai} onChange={e => setBonForm(p => ({ ...p, periode_mulai: e.target.value }))} data-testid="bon-periode-mulai" /></div>
+              <div><Label>Periode Selesai *</Label><Input type="date" value={bonForm.periode_selesai} onChange={e => setBonForm(p => ({ ...p, periode_selesai: e.target.value }))} data-testid="bon-periode-selesai" /></div>
             </div>
-            <div className="space-y-2">
-              <Label>Deskripsi</Label>
-              <Textarea placeholder="Jelaskan detail bon..." value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} rows={3} data-testid="bon-deskripsi-input" />
+            <div><Label>Keperluan *</Label><Textarea placeholder="Tujuan perjalanan dinas" value={bonForm.keperluan} onChange={e => setBonForm(p => ({ ...p, keperluan: e.target.value }))} data-testid="bon-keperluan" /></div>
+
+            <Separator />
+            <h4 className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>AKOMODASI / HOTEL</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Kota Tujuan</Label><Input value={bonForm.akomodasi_kota} onChange={e => setBonForm(p => ({ ...p, akomodasi_kota: e.target.value }))} data-testid="bon-ako-kota" /></div>
+              <div><Label>Nama Hotel</Label><Input value={bonForm.akomodasi_hotel} onChange={e => setBonForm(p => ({ ...p, akomodasi_hotel: e.target.value }))} data-testid="bon-ako-hotel" /></div>
+              <div><Label>Check In</Label><Input type="date" value={bonForm.akomodasi_checkin} onChange={e => setBonForm(p => ({ ...p, akomodasi_checkin: e.target.value }))} data-testid="bon-ako-checkin" /></div>
+              <div><Label>Check Out</Label><Input type="date" value={bonForm.akomodasi_checkout} onChange={e => setBonForm(p => ({ ...p, akomodasi_checkout: e.target.value }))} data-testid="bon-ako-checkout" /></div>
+              <div><Label>Harga / Malam (Rp)</Label><Input type="number" value={bonForm.akomodasi_harga} onChange={e => setBonForm(p => ({ ...p, akomodasi_harga: e.target.value }))} data-testid="bon-ako-harga" /></div>
+              <div><Label>Pembayaran</Label>
+                <Select value={bonForm.akomodasi_bayar} onValueChange={v => setBonForm(p => ({ ...p, akomodasi_bayar: v }))}>
+                  <SelectTrigger data-testid="bon-ako-bayar"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Head Office">Head Office</SelectItem><SelectItem value="Personal">Personal / Langsung</SelectItem></SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Jumlah (Rp)</Label>
-              <Input type="number" placeholder="0" value={form.jumlah} onChange={(e) => setForm({ ...form, jumlah: e.target.value })} data-testid="bon-jumlah-input" />
+
+            <Separator />
+            <h4 className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>TRANSPORTASI</h4>
+            <p className="text-xs text-slate-500 -mt-2">Keberangkatan</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Jenis</Label>
+                <Select value={bonForm.trans_berangkat_jenis} onValueChange={v => setBonForm(p => ({ ...p, trans_berangkat_jenis: v }))}>
+                  <SelectTrigger data-testid="bon-tb-jenis"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                  <SelectContent><SelectItem value="Pesawat">Pesawat</SelectItem><SelectItem value="Kereta Api">Kereta Api</SelectItem><SelectItem value="Mobil Dinas">Mobil Dinas</SelectItem><SelectItem value="Lainnya">Lain-lain</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><Label>Jam Berangkat</Label><Input type="time" value={bonForm.trans_berangkat_jam} onChange={e => setBonForm(p => ({ ...p, trans_berangkat_jam: e.target.value }))} data-testid="bon-tb-jam" /></div>
+              <div><Label>Dari</Label><Input value={bonForm.trans_berangkat_dari} onChange={e => setBonForm(p => ({ ...p, trans_berangkat_dari: e.target.value }))} data-testid="bon-tb-dari" /></div>
+              <div><Label>Ke</Label><Input value={bonForm.trans_berangkat_ke} onChange={e => setBonForm(p => ({ ...p, trans_berangkat_ke: e.target.value }))} data-testid="bon-tb-ke" /></div>
             </div>
-            <div className="space-y-2">
-              <Label>Foto Bukti (Opsional)</Label>
-              <label className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2" data-testid="bon-foto-upload">
-                {fotoPreview ? (
-                  <img src={fotoPreview} alt="Preview" className="max-h-32 rounded-lg object-contain" />
-                ) : (
-                  <>
-                    <UploadCloud className="h-8 w-8 text-slate-400" />
-                    <p className="text-sm text-slate-500">Klik untuk upload foto</p>
-                    <p className="text-xs text-slate-400">PNG, JPG hingga 5MB</p>
-                  </>
-                )}
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <p className="text-xs text-slate-500">Kedatangan / Kembali</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Jenis</Label>
+                <Select value={bonForm.trans_kembali_jenis} onValueChange={v => setBonForm(p => ({ ...p, trans_kembali_jenis: v }))}>
+                  <SelectTrigger data-testid="bon-tk-jenis"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                  <SelectContent><SelectItem value="Pesawat">Pesawat</SelectItem><SelectItem value="Kereta Api">Kereta Api</SelectItem><SelectItem value="Mobil Dinas">Mobil Dinas</SelectItem><SelectItem value="Lainnya">Lain-lain</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><Label>Jam</Label><Input type="time" value={bonForm.trans_kembali_jam} onChange={e => setBonForm(p => ({ ...p, trans_kembali_jam: e.target.value }))} data-testid="bon-tk-jam" /></div>
+              <div><Label>Dari</Label><Input value={bonForm.trans_kembali_dari} onChange={e => setBonForm(p => ({ ...p, trans_kembali_dari: e.target.value }))} data-testid="bon-tk-dari" /></div>
+              <div><Label>Ke</Label><Input value={bonForm.trans_kembali_ke} onChange={e => setBonForm(p => ({ ...p, trans_kembali_ke: e.target.value }))} data-testid="bon-tk-ke" /></div>
+            </div>
+
+            <Separator />
+            <h4 className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ESTIMASI BIAYA (KAS BON)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>1. Biaya Konsumsi</Label><Input type="number" placeholder="0" value={bonForm.biaya_konsumsi} onChange={e => setBonForm(p => ({ ...p, biaya_konsumsi: e.target.value }))} data-testid="bon-biaya-konsumsi" /></div>
+              <div><Label>2. Biaya Transportasi (BBM)</Label><Input type="number" placeholder="0" value={bonForm.biaya_transportasi} onChange={e => setBonForm(p => ({ ...p, biaya_transportasi: e.target.value }))} data-testid="bon-biaya-transport" /></div>
+              <div><Label>3. Biaya Entertainment</Label><Input type="number" placeholder="0" value={bonForm.biaya_entertainment} onChange={e => setBonForm(p => ({ ...p, biaya_entertainment: e.target.value }))} data-testid="bon-biaya-entertain" /></div>
+              <div><Label>4. Biaya Lain-lain</Label><Input type="number" placeholder="0" value={bonForm.biaya_lainnya} onChange={e => setBonForm(p => ({ ...p, biaya_lainnya: e.target.value }))} data-testid="bon-biaya-lainnya" /></div>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg"><p className="text-sm font-bold text-slate-900">TOTAL: {fmt(calcTotal())}</p></div>
+
+            <div><Label>Upload Dokumen Pendukung</Label>
+              <label className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer flex flex-col items-center gap-1" data-testid="bon-foto-upload">
+                <UploadCloud className="h-6 w-6 text-slate-400" />
+                <p className="text-xs text-slate-500">{bonForm.foto ? "File terpilih" : "Klik untuk upload"}</p>
+                <input type="file" accept="image/*" className="hidden" onChange={e => handleFileChange(e, setBonForm, "foto")} />
               </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)} data-testid="cancel-create-bon">Batal</Button>
-            <Button onClick={handleCreate} disabled={loading} className="bg-slate-900 hover:bg-slate-800" data-testid="submit-bon-btn">
-              {loading ? "Membuat..." : "Buat Bon"}
-            </Button>
+            <Button variant="outline" onClick={() => setShowCreateBon(false)}>Batal</Button>
+            <Button onClick={submitBon} disabled={loading} className="bg-slate-900 hover:bg-slate-800" data-testid="submit-bon-btn">{loading ? "Mengirim..." : "Ajukan"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Resubmit Dialog */}
+      {/* CREATE REALISASI DIALOG */}
+      <Dialog open={showCreateReal} onOpenChange={setShowCreateReal}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="create-realisasi-dialog">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Realisasi Bon Sementara</DialogTitle>
+            <DialogDescription>Rekap pengeluaran aktual sesuai bon sementara</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Referensi No. Bon Sementara *</Label>
+                <Select value={realForm.bon_sementara_id} onValueChange={v => setRealForm(p => ({ ...p, bon_sementara_id: v }))}>
+                  <SelectTrigger data-testid="real-bon-ref"><SelectValue placeholder="Pilih Bon Sementara" /></SelectTrigger>
+                  <SelectContent>{approvedBons.map(b => <SelectItem key={b.id} value={b.id}>{b.no_bon} - {b.tujuan} ({fmt(b.jumlah)})</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Periode *</Label><Input type="date" value={realForm.periode} onChange={e => setRealForm(p => ({ ...p, periode: e.target.value }))} data-testid="real-periode" /></div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold">Detail Pengeluaran</Label>
+                <Button variant="outline" size="sm" onClick={addRealItem} className="h-7 gap-1" data-testid="add-real-item"><Plus className="h-3 w-3" />Tambah</Button>
+              </div>
+              {realForm.items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-2"><Label className="text-xs">Tanggal</Label><Input type="date" value={item.tanggal} onChange={e => updateRealItem(idx, "tanggal", e.target.value)} data-testid={`real-item-tgl-${idx}`} /></div>
+                  <div className="col-span-4"><Label className="text-xs">Uraian</Label><Input placeholder="Keterangan" value={item.uraian} onChange={e => updateRealItem(idx, "uraian", e.target.value)} data-testid={`real-item-uraian-${idx}`} /></div>
+                  <div className="col-span-1"><Label className="text-xs">Qty</Label><Input type="number" value={item.quantity} onChange={e => updateRealItem(idx, "quantity", e.target.value)} data-testid={`real-item-qty-${idx}`} /></div>
+                  <div className="col-span-2"><Label className="text-xs">Harga/Unit</Label><Input type="number" value={item.harga_per_unit} onChange={e => updateRealItem(idx, "harga_per_unit", e.target.value)} data-testid={`real-item-harga-${idx}`} /></div>
+                  <div className="col-span-2"><Label className="text-xs">Total</Label><Input disabled value={fmt(item.total || 0)} /></div>
+                  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-9 w-9 text-red-500" onClick={() => removeRealItem(idx)} data-testid={`remove-real-item-${idx}`}><Trash2 className="h-4 w-4" /></Button></div>
+                </div>
+              ))}
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="text-sm font-bold">Total Realisasi: {fmt(realForm.items.reduce((s, i) => s + (parseFloat(i.total) || 0), 0))}</p>
+              </div>
+            </div>
+
+            <div><Label>Upload Bukti Transfer (jika ada kelebihan)</Label>
+              <label className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer flex flex-col items-center gap-1" data-testid="real-bukti-upload">
+                <UploadCloud className="h-6 w-6 text-slate-400" />
+                <p className="text-xs text-slate-500">{realForm.bukti_transfer ? "File terpilih" : "Klik untuk upload"}</p>
+                <input type="file" accept="image/*" className="hidden" onChange={e => handleFileChange(e, setRealForm, "bukti_transfer")} />
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateReal(false)}>Batal</Button>
+            <Button onClick={submitRealisasi} disabled={loading} className="bg-slate-900 hover:bg-slate-800" data-testid="submit-realisasi-btn">{loading ? "Mengirim..." : "Ajukan Realisasi"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* RESUBMIT DIALOG */}
       <Dialog open={!!showResubmit} onOpenChange={() => setShowResubmit(null)}>
         <DialogContent data-testid="resubmit-dialog">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Ajukan Ulang Bon?</DialogTitle>
-            <DialogDescription>
-              Bon <strong>{showResubmit?.judul}</strong> telah ditolak dengan alasan: <em>{showResubmit?.decline_reason}</em>
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-slate-600">Apakah Anda ingin mengajukan ulang bon ini? Status akan kembali menjadi &quot;Menunggu&quot;.</p>
+          <DialogHeader><DialogTitle>Ajukan Ulang?</DialogTitle><DialogDescription>Alasan ditolak: {showResubmit?.decline_reason}</DialogDescription></DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowResubmit(null)} data-testid="cancel-resubmit">Tidak</Button>
-            <Button onClick={() => handleResubmit(showResubmit?.id)} className="bg-blue-600 hover:bg-blue-700" data-testid="confirm-resubmit">
-              Ya, Ajukan Ulang
-            </Button>
+            <Button variant="outline" onClick={() => setShowResubmit(null)}>Tidak</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => handleResubmit(showResubmit?.id, showResubmit?.type)} data-testid="confirm-resubmit">Ya, Ajukan Ulang</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Photo Preview Dialog */}
-      <Dialog open={!!showPhoto} onOpenChange={() => setShowPhoto(null)}>
-        <DialogContent className="sm:max-w-md" data-testid="photo-preview-dialog">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Foto Bukti</DialogTitle>
-          </DialogHeader>
-          {showPhoto && <img src={showPhoto} alt="Bukti" className="w-full rounded-lg" />}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-// --- Atasan View ---
-function AtasanBonView() {
+// ===================== APPROVAL VIEW (Atasan / Finance) =====================
+function ApprovalView({ role }) {
   const [bons, setBons] = useState([]);
+  const [realisasi, setRealisasi] = useState([]);
+  const [tab, setTab] = useState("bon");
   const [showDecline, setShowDecline] = useState(null);
   const [declineReason, setDeclineReason] = useState("");
-  const [showPhoto, setShowPhoto] = useState(null);
 
-  const fetchBons = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await api.get("/bon");
-      setBons(res.data);
-    } catch {
-      toast.error("Gagal memuat data bon");
-    }
+      const [b, r] = await Promise.all([api.get("/bon-sementara"), api.get("/realisasi")]);
+      setBons(b.data); setRealisasi(r.data);
+    } catch { toast.error("Gagal memuat data"); }
   }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => { fetchBons(); }, [fetchBons]);
+  const pendingBons = bons.filter(b => role === "atasan" ? b.status === "pending" : b.status === "approved_atasan");
+  const pendingRealisasi = realisasi.filter(r => role === "atasan" ? r.status === "pending" : r.status === "approved_atasan");
 
-  const pendingBons = bons.filter((b) => b.status === "pending");
-  const otherBons = bons.filter((b) => b.status !== "pending");
-
-  const handleApprove = async (bonId) => {
+  const approve = async (id, type) => {
     try {
-      await api.put(`/bon/${bonId}/approve`);
-      toast.success("Bon disetujui dan diteruskan ke Finance");
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal menyetujui bon");
-    }
+      await api.put(`/${type}/${id}/approve`);
+      toast.success("Disetujui"); fetchData();
+    } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); }
   };
 
-  const handleDecline = async () => {
-    if (!declineReason.trim()) {
-      toast.error("Alasan penolakan wajib diisi");
-      return;
-    }
+  const decline = async () => {
+    if (!declineReason.trim()) { toast.error("Alasan wajib diisi"); return; }
     try {
-      await api.put(`/bon/${showDecline.id}/decline`, { reason: declineReason });
-      toast.success("Bon ditolak");
-      setShowDecline(null);
-      setDeclineReason("");
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal menolak bon");
-    }
+      await api.put(`/${showDecline.type}/${showDecline.id}/decline`, { reason: declineReason });
+      toast.success("Ditolak"); setShowDecline(null); setDeclineReason(""); fetchData();
+    } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); }
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          Persetujuan Bon
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">Review dan setujui bon dari pegawai</p>
-      </div>
-
-      {/* Pending */}
-      <Card className="border-slate-100 shadow-sm rounded-xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Menunggu Persetujuan
-            {pendingBons.length > 0 && (
-              <Badge className="bg-amber-100 text-amber-700 border-amber-200">{pendingBons.length}</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-slate-100">
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Judul</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingBons.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
-                    Tidak ada bon yang menunggu persetujuan
-                  </TableCell>
-                </TableRow>
-              ) : (
-                pendingBons.map((bon) => (
-                  <TableRow key={bon.id} className="border-slate-50" data-testid={`approval-row-${bon.id}`}>
-                    <TableCell className="text-sm font-medium text-slate-900">{bon.user_name}</TableCell>
-                    <TableCell>
-                      <p className="text-sm text-slate-900">{bon.judul}</p>
-                      <p className="text-xs text-slate-500 line-clamp-1">{bon.deskripsi}</p>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900">{formatCurrency(bon.jumlah)}</TableCell>
-                    <TableCell className="text-sm text-slate-500">{new Date(bon.created_at).toLocaleDateString("id-ID")}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {bon.foto && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowPhoto(bon.foto)} data-testid={`view-photo-atasan-${bon.id}`}>
-                            <ImageIcon className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        )}
-                        <Button size="sm" className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApprove(bon.id)} data-testid={`approve-btn-${bon.id}`}>
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 gap-1 text-red-600 hover:bg-red-50" onClick={() => setShowDecline(bon)} data-testid={`decline-btn-${bon.id}`}>
-                          <XCircle className="h-3.5 w-3.5" /> Tolak
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* History */}
-      {otherBons.length > 0 && (
-        <Card className="border-slate-100 shadow-sm rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-slate-100">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Judul</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {otherBons.map((bon) => (
-                  <TableRow key={bon.id} className="border-slate-50">
-                    <TableCell className="text-sm text-slate-900">{bon.user_name}</TableCell>
-                    <TableCell className="text-sm text-slate-900">{bon.judul}</TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900">{formatCurrency(bon.jumlah)}</TableCell>
-                    <TableCell><StatusBadge status={bon.status} /></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Decline Dialog */}
-      <Dialog open={!!showDecline} onOpenChange={() => { setShowDecline(null); setDeclineReason(""); }}>
-        <DialogContent data-testid="decline-dialog">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Tolak Bon</DialogTitle>
-            <DialogDescription>Berikan alasan penolakan untuk bon <strong>{showDecline?.judul}</strong></DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Alasan Penolakan</Label>
-            <Textarea placeholder="Masukkan alasan penolakan..." value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} data-testid="decline-reason-input" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowDecline(null); setDeclineReason(""); }} data-testid="cancel-decline">Batal</Button>
-            <Button onClick={handleDecline} className="bg-red-600 hover:bg-red-700 text-white" data-testid="confirm-decline">Tolak Bon</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Photo Dialog */}
-      <Dialog open={!!showPhoto} onOpenChange={() => setShowPhoto(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Foto Bukti</DialogTitle>
-          </DialogHeader>
-          {showPhoto && <img src={showPhoto} alt="Bukti" className="w-full rounded-lg" />}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// --- Finance View ---
-function FinanceBonView() {
-  const [bons, setBons] = useState([]);
-  const [showDecline, setShowDecline] = useState(null);
-  const [declineReason, setDeclineReason] = useState("");
-  const [showPhoto, setShowPhoto] = useState(null);
-
-  const fetchBons = useCallback(async () => {
-    try {
-      const res = await api.get("/bon");
-      setBons(res.data);
-    } catch {
-      toast.error("Gagal memuat data bon");
-    }
-  }, []);
-
-  useEffect(() => { fetchBons(); }, [fetchBons]);
-
-  const waitingBons = bons.filter((b) => b.status === "approved_atasan");
-  const otherBons = bons.filter((b) => b.status !== "approved_atasan");
-
-  const handleApprove = async (bonId) => {
-    try {
-      await api.put(`/bon/${bonId}/approve`);
-      toast.success("Bon disetujui! PDF siap diunduh.");
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal menyetujui bon");
-    }
-  };
-
-  const handleDecline = async () => {
-    if (!declineReason.trim()) {
-      toast.error("Alasan penolakan wajib diisi");
-      return;
-    }
-    try {
-      await api.put(`/bon/${showDecline.id}/decline`, { reason: declineReason });
-      toast.success("Bon ditolak");
-      setShowDecline(null);
-      setDeclineReason("");
-      fetchBons();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Gagal menolak bon");
-    }
-  };
-
-  const handleDownloadPdf = async (bonId) => {
+  const downloadPdf = async (id, type, name) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${BACKEND_URL}/api/bon/${bonId}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bon-${bonId.slice(0, 8)}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success("PDF berhasil diunduh");
-    } catch {
-      toast.error("Gagal mengunduh PDF");
-    }
+      const a = document.createElement("a"); a.href = url; a.download = `${name}.pdf`; a.click();
+    } catch { toast.error("Gagal"); }
   };
+
+  const renderApprovalTable = (items, type, label) => (
+    <Card className="border-slate-100 shadow-sm rounded-xl">
+      <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{label}{items.length > 0 && <Badge className="bg-amber-100 text-amber-700 border-amber-200">{items.length}</Badge>}</CardTitle></CardHeader>
+      <CardContent className="p-0">
+        <Table><TableHeader><TableRow className="border-slate-100">
+          <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">{type === "bon-sementara" ? "No. Bon / Tujuan" : "Ref. Bon / Periode"}</TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {items.length === 0 ? (<TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-400">Tidak ada yang menunggu</TableCell></TableRow>) :
+          items.map(item => (
+            <TableRow key={item.id} className="border-slate-50" data-testid={`approve-row-${item.id}`}>
+              <TableCell className="text-sm font-medium text-slate-900">{item.user_name}</TableCell>
+              <TableCell><p className="text-sm text-slate-900">{type === "bon-sementara" ? item.no_bon : item.no_bon_ref}</p><p className="text-xs text-slate-500">{type === "bon-sementara" ? item.tujuan : item.periode}</p></TableCell>
+              <TableCell className="text-sm font-medium text-slate-900">{fmt(type === "bon-sementara" ? item.jumlah : item.total_realisasi)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" className="h-7 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => approve(item.id, type)} data-testid={`approve-btn-${item.id}`}><CheckCircle2 className="h-3 w-3" />Setujui</Button>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-red-600 hover:bg-red-50" onClick={() => setShowDecline({ ...item, type })} data-testid={`decline-btn-${item.id}`}><XCircle className="h-3 w-3" />Tolak</Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody></Table>
+      </CardContent>
+    </Card>
+  );
+
+  const historyBons = bons.filter(b => !pendingBons.includes(b));
+  const historyRealisasi = realisasi.filter(r => !pendingRealisasi.includes(r));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          Finalisasi Bon
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">Review bon yang sudah disetujui atasan</p>
-      </div>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList data-testid="approval-tabs">
+          <TabsTrigger value="bon">Bon Sementara</TabsTrigger>
+          <TabsTrigger value="realisasi">Realisasi Bon</TabsTrigger>
+        </TabsList>
+        <TabsContent value="bon" className="space-y-4">
+          {renderApprovalTable(pendingBons, "bon-sementara", "Menunggu Persetujuan")}
+          {historyBons.length > 0 && (
+            <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
+              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Bon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
+              <TableBody>{historyBons.map(b => (<TableRow key={b.id} className="border-slate-50"><TableCell className="text-sm font-mono">{b.no_bon}</TableCell><TableCell className="text-sm">{b.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(b.jumlah)}</TableCell><TableCell><StatusBadge status={b.status} /></TableCell><TableCell>{b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
+              </Table></CardContent></Card>
+          )}
+        </TabsContent>
+        <TabsContent value="realisasi" className="space-y-4">
+          {renderApprovalTable(pendingRealisasi, "realisasi", "Menunggu Persetujuan")}
+          {historyRealisasi.length > 0 && (
+            <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
+              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref.</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
+              <TableBody>{historyRealisasi.map(r => (<TableRow key={r.id} className="border-slate-50"><TableCell className="text-sm font-mono">{r.no_bon_ref}</TableCell><TableCell className="text-sm">{r.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(r.total_realisasi)}</TableCell><TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell><TableCell><StatusBadge status={r.status} /></TableCell><TableCell>{r.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `real-${r.no_bon_ref}`)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
+              </Table></CardContent></Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
-      {/* Waiting */}
-      <Card className="border-slate-100 shadow-sm rounded-xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Menunggu Finalisasi
-            {waitingBons.length > 0 && (
-              <Badge className="bg-blue-100 text-blue-700 border-blue-200">{waitingBons.length}</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-slate-100">
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Judul</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {waitingBons.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
-                    Tidak ada bon yang menunggu finalisasi
-                  </TableCell>
-                </TableRow>
-              ) : (
-                waitingBons.map((bon) => (
-                  <TableRow key={bon.id} className="border-slate-50" data-testid={`finance-row-${bon.id}`}>
-                    <TableCell className="text-sm font-medium text-slate-900">{bon.user_name}</TableCell>
-                    <TableCell>
-                      <p className="text-sm text-slate-900">{bon.judul}</p>
-                      <p className="text-xs text-slate-500 line-clamp-1">{bon.deskripsi}</p>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900">{formatCurrency(bon.jumlah)}</TableCell>
-                    <TableCell className="text-sm text-slate-500">{new Date(bon.created_at).toLocaleDateString("id-ID")}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {bon.foto && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowPhoto(bon.foto)} data-testid={`view-photo-finance-${bon.id}`}>
-                            <ImageIcon className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        )}
-                        <Button size="sm" className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApprove(bon.id)} data-testid={`finance-approve-btn-${bon.id}`}>
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 gap-1 text-red-600 hover:bg-red-50" onClick={() => setShowDecline(bon)} data-testid={`finance-decline-btn-${bon.id}`}>
-                          <XCircle className="h-3.5 w-3.5" /> Tolak
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* History */}
-      {otherBons.length > 0 && (
-        <Card className="border-slate-100 shadow-sm rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-slate-100">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Judul</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {otherBons.map((bon) => (
-                  <TableRow key={bon.id} className="border-slate-50">
-                    <TableCell className="text-sm text-slate-900">{bon.user_name}</TableCell>
-                    <TableCell className="text-sm text-slate-900">{bon.judul}</TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900">{formatCurrency(bon.jumlah)}</TableCell>
-                    <TableCell><StatusBadge status={bon.status} /></TableCell>
-                    <TableCell>
-                      {bon.status === "approved_finance" && (
-                        <Button size="sm" variant="ghost" className="h-8 gap-1 text-emerald-600 hover:bg-emerald-50" onClick={() => handleDownloadPdf(bon.id)} data-testid={`finance-download-pdf-${bon.id}`}>
-                          <Download className="h-3.5 w-3.5" /> PDF
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Decline Dialog */}
       <Dialog open={!!showDecline} onOpenChange={() => { setShowDecline(null); setDeclineReason(""); }}>
-        <DialogContent data-testid="finance-decline-dialog">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Tolak Bon</DialogTitle>
-            <DialogDescription>Berikan alasan penolakan untuk bon <strong>{showDecline?.judul}</strong></DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Alasan Penolakan</Label>
-            <Textarea placeholder="Masukkan alasan penolakan..." value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} data-testid="finance-decline-reason-input" />
-          </div>
+        <DialogContent data-testid="decline-dialog">
+          <DialogHeader><DialogTitle>Tolak</DialogTitle><DialogDescription>Berikan alasan penolakan</DialogDescription></DialogHeader>
+          <Textarea placeholder="Alasan..." value={declineReason} onChange={e => setDeclineReason(e.target.value)} data-testid="decline-reason-input" />
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowDecline(null); setDeclineReason(""); }}>Batal</Button>
-            <Button onClick={handleDecline} className="bg-red-600 hover:bg-red-700 text-white" data-testid="finance-confirm-decline">Tolak Bon</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={decline} data-testid="confirm-decline">Tolak</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Photo Dialog */}
-      <Dialog open={!!showPhoto} onOpenChange={() => setShowPhoto(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Foto Bukti</DialogTitle>
-          </DialogHeader>
-          {showPhoto && <img src={showPhoto} alt="Bukti" className="w-full rounded-lg" />}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-// --- Main Bon Page ---
+// ===================== MAIN =====================
 export default function BonPage() {
   const { user } = useAuth();
-
   return (
     <div className="max-w-6xl" data-testid="bon-page">
-      {user?.role === "pegawai" && <PegawaiBonView />}
-      {user?.role === "atasan" && <AtasanBonView />}
-      {user?.role === "finance" && <FinanceBonView />}
+      <div className="mb-5">
+        <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          {user?.role === "pegawai" ? "Bon Sementara & Realisasi" : user?.role === "atasan" ? "Persetujuan Bon" : "Finalisasi Bon"}
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          {user?.role === "pegawai" ? "Ajukan bon sementara dan realisasi perjalanan dinas" : "Review dan setujui pengajuan bon"}
+        </p>
+      </div>
+      {user?.role === "pegawai" ? <PegawaiView /> : <ApprovalView role={user?.role} />}
     </div>
   );
 }
