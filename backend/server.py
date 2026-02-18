@@ -68,6 +68,10 @@ class EstimasiBiaya(BaseModel):
     biaya_entertainment: float = 0
     biaya_lainnya: float = 0
 
+class EstimasiItem(BaseModel):
+    uraian: str = ""
+    jumlah: float = 0
+
 class BonSementaraCreate(BaseModel):
     nik: str = ""
     jabatan: str = ""
@@ -79,7 +83,7 @@ class BonSementaraCreate(BaseModel):
     akomodasi: Optional[AkomodasiData] = None
     transportasi_berangkat: Optional[TransportasiData] = None
     transportasi_kembali: Optional[TransportasiData] = None
-    estimasi_biaya: Optional[EstimasiBiaya] = None
+    estimasi_items: Optional[List[EstimasiItem]] = None
     jumlah: float
     foto: Optional[str] = None
 
