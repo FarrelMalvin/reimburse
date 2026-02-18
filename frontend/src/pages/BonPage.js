@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, XCircle, RotateCcw, Download, Trash2, UploadCloud } from "lucide-react";
+import { Plus, CheckCircle2, XCircle, RotateCcw, Download, Trash2, UploadCloud, FileText } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const statusCfg = {
