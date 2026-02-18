@@ -237,7 +237,8 @@ async def create_bon_sementara(data: BonSementaraCreate, authorization: str = He
     if user['role'] != 'pegawai':
         raise HTTPException(status_code=403, detail='Hanya pegawai')
     no_bon = await generate_no_bon()
-    est = data.estimasi_biaya.model_dump() if data.estimasi_biaya else {"biaya_konsumsi": 0, "biaya_transportasi": 0, "biaya_entertainment": 0, "biaya_lainnya": 0}
+    # Estimasi items custom
+    estimasi_items = [item.model_dump() for item in data.estimasi_items] if data.estimasi_items else []
     ako = data.akomodasi.model_dump() if data.akomodasi else {}
     tb = data.transportasi_berangkat.model_dump() if data.transportasi_berangkat else {}
     tk = data.transportasi_kembali.model_dump() if data.transportasi_kembali else {}
@@ -246,7 +247,7 @@ async def create_bon_sementara(data: BonSementaraCreate, authorization: str = He
         "nik": data.nik, "jabatan": data.jabatan, "wilayah": data.wilayah,
         "tujuan": data.tujuan, "periode_mulai": data.periode_mulai, "periode_selesai": data.periode_selesai,
         "keperluan": data.keperluan, "akomodasi": ako, "transportasi_berangkat": tb, "transportasi_kembali": tk,
-        "estimasi_biaya": est, "jumlah": data.jumlah, "foto": data.foto,
+        "estimasi_items": estimasi_items, "jumlah": data.jumlah, "foto": data.foto,
         "status": "pending", "declined_by": None, "decline_reason": None,
         "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()
     }
