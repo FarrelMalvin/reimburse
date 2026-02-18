@@ -254,18 +254,53 @@ async def approve_bon_sementara(bon_id: str, authorization: str = Header(None)):
     bon = await db.bon_sementara.find_one({"id": bon_id}, {"_id": 0})
     if not bon:
         raise HTTPException(status_code=404, detail='Tidak ditemukan')
-    if user['role'] == 'atasan':
-        if bon['status'] != 'pending':
-            raise HTTPException(status_code=400, detail='Status bukan pending')
-        new_status = 'approved_atasan'
-    elif user['role'] == 'finance':
-        if bon['status'] != 'approved_atasan':
-            raise HTTPException(status_code=400, detail='Belum disetujui atasan')
-        new_status = 'approved_finance'
-    else:
-        raise HTTPException(status_code=403)
-    await db.bon_sementara.update_one({"id": bon_id}, {"$set": {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}})
-    await db.notifications.insert_one({"id": str(uuid.uuid4()), "user_id": bon['user_id'], "message": f"Bon Sementara '{bon['no_bon']}' disetujui oleh {user['role']}", "type": "approved", "bon_id": bon_id, "is_read": False, "created_at": datetime.now(timezone.utc).isoformat()})
+    
+    role = user['role']
+    current_status = bon['status']
+    
+    # Check if user can approve based on status flow
+    flow = BON_STATUS_FLOW.get(current_status)
+    if not flow or flow['approver'] != role:
+        raise HTTPException(status_code=400, detail=f'Tidak dapat disetujui. Status saat ini: {current_status}, Role: {role}')
+    
+    new_status = flow['next']
+    
+    # Track approval history
+    approval_history = bon.get('approval_history', [])
+    approval_history.append({
+        "action": "approved",
+        "by": user['name'],
+        "role": role,
+        "at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    await db.bon_sementara.update_one(
+        {"id": bon_id}, 
+        {"$set": {
+            "status": new_status, 
+            "approval_history": approval_history,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Notification message based on role
+    status_labels = {
+        "approved_atasan": "Atasan Departemen",
+        "approved_hrga": "HRGA",
+        "approved_direktur": "Direktur",
+        "approved_finance": "Finance (Final)"
+    }
+    
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), 
+        "user_id": bon['user_id'], 
+        "message": f"Bon Sementara '{bon['no_bon']}' disetujui oleh {status_labels.get(new_status, role)}", 
+        "type": "approved", 
+        "bon_id": bon_id, 
+        "is_read": False, 
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
     return {"message": "Disetujui", "status": new_status}
 
 @api_router.put("/bon-sementara/{bon_id}/decline")
