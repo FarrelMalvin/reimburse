@@ -243,11 +243,11 @@ function PegawaiView() {
         </TabsContent>
       </Tabs>
 
-      {/* CREATE BON DIALOG */}
+      {/* CREATE PERJALANAN DINAS DIALOG */}
       <Dialog open={showCreateBon} onOpenChange={setShowCreateBon}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="create-bon-dialog">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pengajuan Perjalanan Dinas & Bon Sementara</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pengajuan Perjalanan Dinas</DialogTitle>
             <DialogDescription>Isi sesuai Form Perjalanan Dinas Karyawan</DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
@@ -305,14 +305,31 @@ function PegawaiView() {
             </div>
 
             <Separator />
-            <h4 className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ESTIMASI BIAYA (KAS BON)</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>1. Biaya Konsumsi</Label><Input type="number" placeholder="0" value={bonForm.biaya_konsumsi} onChange={e => setBonForm(p => ({ ...p, biaya_konsumsi: e.target.value }))} data-testid="bon-biaya-konsumsi" /></div>
-              <div><Label>2. Biaya Transportasi (BBM)</Label><Input type="number" placeholder="0" value={bonForm.biaya_transportasi} onChange={e => setBonForm(p => ({ ...p, biaya_transportasi: e.target.value }))} data-testid="bon-biaya-transport" /></div>
-              <div><Label>3. Biaya Entertainment</Label><Input type="number" placeholder="0" value={bonForm.biaya_entertainment} onChange={e => setBonForm(p => ({ ...p, biaya_entertainment: e.target.value }))} data-testid="bon-biaya-entertain" /></div>
-              <div><Label>4. Biaya Lain-lain</Label><Input type="number" placeholder="0" value={bonForm.biaya_lainnya} onChange={e => setBonForm(p => ({ ...p, biaya_lainnya: e.target.value }))} data-testid="bon-biaya-lainnya" /></div>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ESTIMASI BIAYA PERJALANAN DINAS (KAS BON)</h4>
+              <Button variant="outline" size="sm" onClick={addEstimasiItem} className="h-7 gap-1" data-testid="add-estimasi-item"><Plus className="h-3 w-3" />Tambah</Button>
             </div>
-            <div className="bg-slate-50 p-3 rounded-lg"><p className="text-sm font-bold text-slate-900">TOTAL: {fmt(calcTotal())}</p></div>
+            <div className="space-y-2">
+              {bonForm.estimasi_items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-1 text-sm font-medium text-slate-600 pb-2">{idx + 1}.</div>
+                  <div className="col-span-6">
+                    <Label className="text-xs">Uraian Biaya</Label>
+                    <Input placeholder="Contoh: Biaya Konsumsi" value={item.uraian} onChange={e => updateEstimasiItem(idx, "uraian", e.target.value)} data-testid={`est-uraian-${idx}`} />
+                  </div>
+                  <div className="col-span-4">
+                    <Label className="text-xs">Jumlah (Rp)</Label>
+                    <Input type="number" placeholder="0" value={item.jumlah || ""} onChange={e => updateEstimasiItem(idx, "jumlah", e.target.value)} data-testid={`est-jumlah-${idx}`} />
+                  </div>
+                  <div className="col-span-1">
+                    {bonForm.estimasi_items.length > 1 && (
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500" onClick={() => removeEstimasiItem(idx)} data-testid={`remove-est-${idx}`}><Trash2 className="h-4 w-4" /></Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg"><p className="text-sm font-bold text-slate-900">TOTAL: {fmt(calcEstimasiTotal())}</p></div>
 
             <div><Label>Upload Dokumen Pendukung</Label>
               <label className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer flex flex-col items-center gap-1" data-testid="bon-foto-upload">
