@@ -38,7 +38,14 @@ function PegawaiView() {
   const [showCreateBon, setShowCreateBon] = useState(false);
   const [showCreateReal, setShowCreateReal] = useState(false);
   const [showResubmit, setShowResubmit] = useState(null);
-  const [bonForm, setBonForm] = useState({ nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "", jumlah: "", biaya_konsumsi: "", biaya_transportasi: "", biaya_entertainment: "", biaya_lainnya: "", akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", foto: null });
+  const [bonForm, setBonForm] = useState({ 
+    nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "",
+    akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", 
+    trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", 
+    trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", 
+    foto: null,
+    estimasi_items: [{ uraian: "Biaya Konsumsi", jumlah: 0 }]
+  });
   const [realForm, setRealForm] = useState({ bon_sementara_id: "", periode: "", items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }], bukti_transfer: null });
   const [loading, setLoading] = useState(false);
 
@@ -58,9 +65,25 @@ function PegawaiView() {
     reader.readAsDataURL(file);
   };
 
-  const calcTotal = () => {
-    const e = bonForm;
-    return (parseFloat(e.biaya_konsumsi) || 0) + (parseFloat(e.biaya_transportasi) || 0) + (parseFloat(e.biaya_entertainment) || 0) + (parseFloat(e.biaya_lainnya) || 0);
+  // Estimasi biaya custom - calculate total
+  const calcEstimasiTotal = () => {
+    return bonForm.estimasi_items.reduce((sum, item) => sum + (parseFloat(item.jumlah) || 0), 0);
+  };
+  
+  const addEstimasiItem = () => {
+    setBonForm(p => ({ ...p, estimasi_items: [...p.estimasi_items, { uraian: "", jumlah: 0 }] }));
+  };
+  
+  const removeEstimasiItem = (idx) => {
+    setBonForm(p => ({ ...p, estimasi_items: p.estimasi_items.filter((_, i) => i !== idx) }));
+  };
+  
+  const updateEstimasiItem = (idx, field, val) => {
+    setBonForm(p => {
+      const items = [...p.estimasi_items];
+      items[idx] = { ...items[idx], [field]: field === 'jumlah' ? (parseFloat(val) || 0) : val };
+      return { ...p, estimasi_items: items };
+    });
   };
 
   const submitBon = async () => {
@@ -69,20 +92,27 @@ function PegawaiView() {
     }
     setLoading(true);
     try {
-      const total = calcTotal();
+      const total = calcEstimasiTotal();
       await api.post("/bon-sementara", {
         nik: bonForm.nik, jabatan: bonForm.jabatan, wilayah: bonForm.wilayah, tujuan: bonForm.tujuan,
         periode_mulai: bonForm.periode_mulai, periode_selesai: bonForm.periode_selesai, keperluan: bonForm.keperluan,
-        jumlah: total || parseFloat(bonForm.jumlah) || 0,
+        jumlah: total,
         akomodasi: { kota_tujuan: bonForm.akomodasi_kota, nama_hotel: bonForm.akomodasi_hotel, check_in: bonForm.akomodasi_checkin, check_out: bonForm.akomodasi_checkout, harga_per_malam: parseFloat(bonForm.akomodasi_harga) || 0, pembayaran: bonForm.akomodasi_bayar },
         transportasi_berangkat: { jenis: bonForm.trans_berangkat_jenis, dari_kota: bonForm.trans_berangkat_dari, ke_kota: bonForm.trans_berangkat_ke, jam_berangkat: bonForm.trans_berangkat_jam },
         transportasi_kembali: { jenis: bonForm.trans_kembali_jenis, dari_kota: bonForm.trans_kembali_dari, ke_kota: bonForm.trans_kembali_ke, jam_berangkat: bonForm.trans_kembali_jam },
-        estimasi_biaya: { biaya_konsumsi: parseFloat(bonForm.biaya_konsumsi) || 0, biaya_transportasi: parseFloat(bonForm.biaya_transportasi) || 0, biaya_entertainment: parseFloat(bonForm.biaya_entertainment) || 0, biaya_lainnya: parseFloat(bonForm.biaya_lainnya) || 0 },
+        estimasi_items: bonForm.estimasi_items,
         foto: bonForm.foto,
       });
-      toast.success("Bon Sementara berhasil diajukan");
+      toast.success("Perjalanan Dinas berhasil diajukan");
       setShowCreateBon(false);
-      setBonForm({ nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "", jumlah: "", biaya_konsumsi: "", biaya_transportasi: "", biaya_entertainment: "", biaya_lainnya: "", akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", foto: null });
+      setBonForm({ 
+        nik: "", jabatan: "", wilayah: "", tujuan: "", periode_mulai: "", periode_selesai: "", keperluan: "",
+        akomodasi_kota: "", akomodasi_hotel: "", akomodasi_checkin: "", akomodasi_checkout: "", akomodasi_harga: "", akomodasi_bayar: "Head Office", 
+        trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", 
+        trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", 
+        foto: null,
+        estimasi_items: [{ uraian: "Biaya Konsumsi", jumlah: 0 }]
+      });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); } finally { setLoading(false); }
   };
