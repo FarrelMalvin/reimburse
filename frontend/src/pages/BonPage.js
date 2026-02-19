@@ -710,7 +710,6 @@ function ApprovalView({ role }) {
                   {(filterMonth || filterYear || filterMinAmount || filterMaxAmount) && (
                     <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>Reset</Button>
                   )}
-                  <Button size="sm" className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={downloadExcel}><Download className="h-3 w-3" />Excel</Button>
                 </div>
               </div>
             </CardHeader>
