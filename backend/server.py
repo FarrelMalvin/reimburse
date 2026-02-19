@@ -92,6 +92,7 @@ class RealisasiItemData(BaseModel):
     quantity: int = 1
     harga_per_unit: float = 0
     total: float = 0
+    bukti: Optional[str] = None
 
 class RealisasiBonCreate(BaseModel):
     bon_sementara_id: str
