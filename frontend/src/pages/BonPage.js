@@ -379,21 +379,46 @@ function PegawaiView() {
             </div>
             <div className="space-y-2">
               {bonForm.estimasi_items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-1 text-sm font-medium text-slate-600 pb-2">{idx + 1}.</div>
-                  <div className="col-span-6">
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end border border-slate-200 rounded-lg p-3">
+                  <div className="col-span-12 mb-1">
+                    <span className="text-xs font-semibold text-slate-600">Item {idx + 1}</span>
+                  </div>
+                  <div className="col-span-3">
+                    <Label className="text-xs">Kategori</Label>
+                    <Select value={item.kategori} onValueChange={v => updateEstimasiItem(idx, "kategori", v)}>
+                      <SelectTrigger data-testid={`est-kategori-${idx}`} className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="konsumsi">Konsumsi</SelectItem>
+                        <SelectItem value="transportasi">Transportasi</SelectItem>
+                        <SelectItem value="bbm">BBM</SelectItem>
+                        <SelectItem value="akomodasi">Akomodasi</SelectItem>
+                        <SelectItem value="entertainment">Entertainment</SelectItem>
+                        <SelectItem value="tarif tol">Tarif Tol</SelectItem>
+                        <SelectItem value="tarif parkir">Tarif Parkir</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-5">
                     <Label className="text-xs">Uraian Biaya</Label>
-                    <Input placeholder="Contoh: Biaya Konsumsi" value={item.uraian} onChange={e => updateEstimasiItem(idx, "uraian", e.target.value)} data-testid={`est-uraian-${idx}`} />
+                    <Input placeholder="Keterangan biaya" value={item.uraian} onChange={e => updateEstimasiItem(idx, "uraian", e.target.value)} data-testid={`est-uraian-${idx}`} className="h-9" />
                   </div>
-                  <div className="col-span-4">
+                  <div className="col-span-2">
+                    <Label className="text-xs">Quantity</Label>
+                    <Input type="number" placeholder="1" value={item.quantity || ""} onChange={e => updateEstimasiItem(idx, "quantity", e.target.value)} data-testid={`est-quantity-${idx}`} className="h-9" />
+                  </div>
+                  <div className="col-span-2">
                     <Label className="text-xs">Jumlah (Rp)</Label>
-                    <Input type="number" placeholder="0" value={item.jumlah || ""} onChange={e => updateEstimasiItem(idx, "jumlah", e.target.value)} data-testid={`est-jumlah-${idx}`} />
+                    <Input type="number" placeholder="0" value={item.jumlah || ""} onChange={e => updateEstimasiItem(idx, "jumlah", e.target.value)} data-testid={`est-jumlah-${idx}`} className="h-9" />
                   </div>
-                  <div className="col-span-1">
-                    {bonForm.estimasi_items.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500" onClick={() => removeEstimasiItem(idx)} data-testid={`remove-est-${idx}`}><Trash2 className="h-4 w-4" /></Button>
-                    )}
-                  </div>
+                  {bonForm.estimasi_items.length > 1 && (
+                    <div className="col-span-12 flex justify-end -mt-1">
+                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-red-500" onClick={() => removeEstimasiItem(idx)} data-testid={`remove-est-${idx}`}>
+                        <Trash2 className="h-3 w-3" />Hapus
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
