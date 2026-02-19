@@ -766,6 +766,223 @@ async def create_realisasi(data: RealisasiBonCreate, authorization: str = Header
     doc.pop('_id', None)
     return doc
 
+@api_router.get("/realisasi/export-excel")
+async def export_realisasi_excel(
+    authorization: str = Header(None),
+    month: Optional[str] = None,
+    year: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None
+):
+    user = await get_current_user(authorization)
+    
+    # Build query based on role
+    query = {}
+    role = user['role']
+    
+    if role == 'pegawai':
+        query["user_id"] = user['id']
+    elif role == 'hrga':
+        query["status"] = {"$in": ["pending", "approved_hrga", "approved_direktur", "approved_finance", "declined"]}
+    elif role == 'direktur':
+        query["status"] = {"$in": ["approved_hrga", "approved_direktur", "approved_finance", "declined"]}
+    elif role == 'finance':
+        query["status"] = {"$in": ["approved_direktur", "approved_finance", "declined"]}
+    
+    # Get all matching realisasi
+    realisasi_list = await db.realisasi_bon.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Apply filters
+    filtered_realisasi = []
+    for r in realisasi_list:
+        created_date = datetime.fromisoformat(r['created_at'])
+        item_month = created_date.month
+        item_year = created_date.year
+        amount = r.get('total_realisasi', 0)
+        
+        if month and int(month) != item_month:
+            continue
+        if year and int(year) != item_year:
+            continue
+        if min_amount and amount < float(min_amount):
+            continue
+        if max_amount and amount > float(max_amount):
+            continue
+        
+        filtered_realisasi.append(r)
+    
+    # Group items by kategori
+    # First, get bon_sementara data to get kategori from estimasi_items
+    kategori_data = {}
+    
+    for r in filtered_realisasi:
+        # Get the bon sementara to map items to kategori
+        bon = await db.bon_sementara.find_one({"id": r['bon_sementara_id']}, {"_id": 0})
+        if not bon:
+            continue
+        
+        estimasi_items = bon.get('estimasi_items', [])
+        
+        # Map realisasi items
+        for item in r.get('items', []):
+            uraian = item.get('uraian', '')
+            
+            # Try to find matching kategori from estimasi_items by uraian
+            kategori = "Lainnya"
+            for est in estimasi_items:
+                if est.get('uraian', '').lower() in uraian.lower() or uraian.lower() in est.get('uraian', '').lower():
+                    kategori = est.get('kategori', 'Lainnya').title()
+                    break
+            
+            # If still not found, try to infer from uraian
+            if kategori == "Lainnya":
+                uraian_lower = uraian.lower()
+                if any(word in uraian_lower for word in ['makan', 'konsumsi', 'snack', 'lunch', 'dinner']):
+                    kategori = "Konsumsi"
+                elif any(word in uraian_lower for word in ['transport', 'taxi', 'grab', 'pesawat', 'kereta']):
+                    kategori = "Transportasi"
+                elif any(word in uraian_lower for word in ['bbm', 'bensin', 'solar', 'pertamina']):
+                    kategori = "BBM"
+                elif any(word in uraian_lower for word in ['hotel', 'akomodasi', 'penginapan']):
+                    kategori = "Akomodasi"
+                elif any(word in uraian_lower for word in ['entertainment', 'hiburan']):
+                    kategori = "Entertainment"
+                elif any(word in uraian_lower for word in ['tol']):
+                    kategori = "Tarif Tol"
+                elif any(word in uraian_lower for word in ['parkir']):
+                    kategori = "Tarif Parkir"
+            
+            if kategori not in kategori_data:
+                kategori_data[kategori] = []
+            
+            kategori_data[kategori].append({
+                'no_bon': r.get('no_bon_ref', ''),
+                'periode': r.get('periode', ''),
+                'tanggal': item.get('tanggal', ''),
+                'uraian': uraian,
+                'quantity': item.get('quantity', 1),
+                'harga_per_unit': item.get('harga_per_unit', 0),
+                'total': item.get('total', 0)
+            })
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Recap Realisasi Bon"
+    
+    # Header style
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Kategori header style
+    kategori_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    kategori_font = Font(bold=True, size=11)
+    
+    # Total style
+    total_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+    total_font = Font(bold=True, size=10)
+    
+    # Set column headers
+    headers = ["NO", "No Dokumen", "Periode", "Tanggal", "Uraian", "Quantity", "Harga/Unit (Rp)", "Total (Rp)"]
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+    
+    # Set column widths
+    ws.column_dimensions['A'].width = 6
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 40
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 18
+    ws.column_dimensions['H'].width = 18
+    
+    # Populate data by kategori
+    current_row = 2
+    no = 1
+    grand_total = 0
+    
+    for kategori, items in sorted(kategori_data.items()):
+        # Kategori header row
+        kategori_cell = ws.cell(row=current_row, column=1)
+        kategori_cell.value = f"KATEGORI: {kategori.upper()}"
+        kategori_cell.fill = kategori_fill
+        kategori_cell.font = kategori_font
+        ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=8)
+        current_row += 1
+        
+        # Items in this kategori
+        kategori_total = 0
+        for item in items:
+            ws.cell(row=current_row, column=1).value = no
+            ws.cell(row=current_row, column=2).value = item['no_bon']
+            ws.cell(row=current_row, column=3).value = item['periode']
+            ws.cell(row=current_row, column=4).value = item['tanggal']
+            ws.cell(row=current_row, column=5).value = item['uraian']
+            ws.cell(row=current_row, column=6).value = item['quantity']
+            ws.cell(row=current_row, column=7).value = item['harga_per_unit']
+            ws.cell(row=current_row, column=8).value = item['total']
+            
+            # Alignment
+            ws.cell(row=current_row, column=1).alignment = Alignment(horizontal="center")
+            ws.cell(row=current_row, column=6).alignment = Alignment(horizontal="center")
+            ws.cell(row=current_row, column=7).alignment = Alignment(horizontal="right")
+            ws.cell(row=current_row, column=8).alignment = Alignment(horizontal="right")
+            
+            kategori_total += item['total']
+            current_row += 1
+            no += 1
+        
+        # Subtotal row
+        subtotal_cell = ws.cell(row=current_row, column=7)
+        subtotal_cell.value = f"Total {kategori}:"
+        subtotal_cell.fill = total_fill
+        subtotal_cell.font = total_font
+        subtotal_cell.alignment = Alignment(horizontal="right")
+        
+        subtotal_value_cell = ws.cell(row=current_row, column=8)
+        subtotal_value_cell.value = kategori_total
+        subtotal_value_cell.fill = total_fill
+        subtotal_value_cell.font = total_font
+        subtotal_value_cell.alignment = Alignment(horizontal="right")
+        
+        grand_total += kategori_total
+        current_row += 2  # Empty row after each kategori
+    
+    # Grand total row
+    if kategori_data:
+        grand_total_cell = ws.cell(row=current_row, column=7)
+        grand_total_cell.value = "GRAND TOTAL:"
+        grand_total_cell.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+        grand_total_cell.font = Font(bold=True, size=11)
+        grand_total_cell.alignment = Alignment(horizontal="right")
+        
+        grand_total_value_cell = ws.cell(row=current_row, column=8)
+        grand_total_value_cell.value = grand_total
+        grand_total_value_cell.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+        grand_total_value_cell.font = Font(bold=True, size=11)
+        grand_total_value_cell.alignment = Alignment(horizontal="right")
+    
+    # Save to BytesIO
+    excel_file = io.BytesIO()
+    wb.save(excel_file)
+    excel_file.seek(0)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Recap_Realisasi_Bon_{timestamp}.xlsx"
+    
+    return Response(
+        content=excel_file.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @api_router.put("/realisasi/{real_id}/approve")
 async def approve_realisasi(real_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
