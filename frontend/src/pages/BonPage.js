@@ -158,7 +158,10 @@ function PegawaiView() {
         akomodasi: { kota_tujuan: bonForm.akomodasi_kota, nama_hotel: bonForm.akomodasi_hotel, check_in: bonForm.akomodasi_checkin, check_out: bonForm.akomodasi_checkout, harga_per_malam: parseFloat(bonForm.akomodasi_harga) || 0, pembayaran: bonForm.akomodasi_bayar },
         transportasi_berangkat: { jenis: bonForm.trans_berangkat_jenis, dari_kota: bonForm.trans_berangkat_dari, ke_kota: bonForm.trans_berangkat_ke, jam_berangkat: bonForm.trans_berangkat_jam },
         transportasi_kembali: { jenis: bonForm.trans_kembali_jenis, dari_kota: bonForm.trans_kembali_dari, ke_kota: bonForm.trans_kembali_ke, jam_berangkat: bonForm.trans_kembali_jam },
-        estimasi_items: bonForm.estimasi_items,
+        estimasi_items: bonForm.estimasi_items.map(item => {
+          const { auto_generated, ...cleanItem } = item;
+          return cleanItem;
+        }),
         foto: bonForm.foto,
       });
       toast.success("Perjalanan Dinas berhasil diajukan");
