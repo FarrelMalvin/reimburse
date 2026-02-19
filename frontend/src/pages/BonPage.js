@@ -207,7 +207,7 @@ function PegawaiView() {
     } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); } finally { setLoading(false); }
   };
 
-  const addRealItem = () => setRealForm(p => ({ ...p, items: [...p.items, { tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }] }));
+  const addRealItem = () => setRealForm(p => ({ ...p, items: [...p.items, { tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0, bukti: null }] }));
   const removeRealItem = (idx) => setRealForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }));
   const updateRealItem = (idx, field, val) => {
     setRealForm(p => {
@@ -218,6 +218,19 @@ function PegawaiView() {
       }
       return { ...p, items };
     });
+  };
+
+  const handleItemFileChange = (idx, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRealForm(p => {
+        const items = [...p.items];
+        items[idx] = { ...items[idx], bukti: reader.result };
+        return { ...p, items };
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const submitRealisasi = async () => {
