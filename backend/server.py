@@ -63,7 +63,9 @@ class TransportasiData(BaseModel):
     jam_berangkat: str = ""
 
 class EstimasiItem(BaseModel):
+    kategori: str = ""
     uraian: str = ""
+    quantity: int = 1
     jumlah: float = 0
 
 class BonSementaraCreate(BaseModel):
