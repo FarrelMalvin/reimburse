@@ -548,6 +548,17 @@ function ApprovalView({ role }) {
   const years = [];
   const currentYear = new Date().getFullYear();
   for (let y = currentYear; y >= currentYear - 5; y--) years.push(y);
+  
+  const months = [
+    { value: "1", label: "Januari" }, { value: "2", label: "Februari" }, { value: "3", label: "Maret" },
+    { value: "4", label: "April" }, { value: "5", label: "Mei" }, { value: "6", label: "Juni" },
+    { value: "7", label: "Juli" }, { value: "8", label: "Agustus" }, { value: "9", label: "September" },
+    { value: "10", label: "Oktober" }, { value: "11", label: "November" }, { value: "12", label: "Desember" }
+  ];
+
+  const clearFilters = () => {
+    setFilterMonth(""); setFilterYear(""); setFilterMinAmount(""); setFilterMaxAmount("");
+  };
 
   return (
     <div className="space-y-6">
@@ -558,26 +569,122 @@ function ApprovalView({ role }) {
         </TabsList>
         <TabsContent value="bon" className="space-y-4">
           {renderApprovalTable(pendingBons, "bon-sementara", `Menunggu Persetujuan ${roleLabels[role]}`)}
-          {historyBons.length > 0 && (
-            <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
-              <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Dokumen</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
-              <TableBody>{historyBons.map(b => (<TableRow key={b.id} className="border-slate-50"><TableCell className="text-sm font-mono">{b.no_bon}</TableCell><TableCell className="text-sm">{b.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(b.jumlah)}</TableCell><TableCell><StatusBadge status={b.status} /></TableCell><TableCell>{b.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
-              </Table></CardContent></Card>
-          )}
+          
+          {/* History with Filters */}
+          <Card className="border-slate-100 shadow-sm rounded-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Bulan" /></SelectTrigger>
+                    <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue placeholder="Tahun" /></SelectTrigger>
+                    <SelectContent>{years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input type="number" placeholder="Min Rp" value={filterMinAmount} onChange={e => setFilterMinAmount(e.target.value)} className="w-[100px] h-8 text-xs" />
+                  <Input type="number" placeholder="Max Rp" value={filterMaxAmount} onChange={e => setFilterMaxAmount(e.target.value)} className="w-[100px] h-8 text-xs" />
+                  {(filterMonth || filterYear || filterMinAmount || filterMaxAmount) && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>Reset</Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table><TableHeader><TableRow>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">No. Dokumen</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {historyBons.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Tidak ada riwayat</TableCell></TableRow>
+                ) : historyBons.map(b => (
+                  <TableRow key={b.id} className="border-slate-50 cursor-pointer hover:bg-slate-50" onClick={() => setShowDetail({ ...b, type: "bon-sementara" })}>
+                    <TableCell className="text-sm font-mono">{b.no_bon}</TableCell>
+                    <TableCell className="text-sm">{b.user_name}</TableCell>
+                    <TableCell className="text-sm font-medium">{fmt(b.jumlah)}</TableCell>
+                    <TableCell><StatusBadge status={b.status} /></TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {["approved_atasan", "approved_hrga", "approved_direktur", "approved_finance"].includes(b.status) && (
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-blue-600" onClick={() => downloadPdf(b.id, "bon-sementara", `RPD-${b.no_bon}`, "/pdf-perjalanan-dinas")}><FileText className="h-3 w-3" />RPD</Button>
+                        )}
+                        {b.status === "approved_finance" && (
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(b.id, "bon-sementara", b.no_bon)}><Download className="h-3 w-3" />Bon</Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody></Table>
+            </CardContent>
+          </Card>
         </TabsContent>
         {showRealisasiTab && (
           <TabsContent value="realisasi" className="space-y-4">
             {renderApprovalTable(pendingRealisasi, "realisasi", `Menunggu Persetujuan ${roleLabels[role]}`)}
-            {historyRealisasi.length > 0 && (
-              <Card className="border-slate-100 shadow-sm rounded-xl"><CardHeader className="pb-3"><CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle></CardHeader><CardContent className="p-0">
-                <Table><TableHeader><TableRow><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref.</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead><TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead></TableRow></TableHeader>
-                <TableBody>{historyRealisasi.map(r => (<TableRow key={r.id} className="border-slate-50"><TableCell className="text-sm font-mono">{r.no_bon_ref}</TableCell><TableCell className="text-sm">{r.user_name}</TableCell><TableCell className="text-sm font-medium">{fmt(r.total_realisasi)}</TableCell><TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell><TableCell><StatusBadge status={r.status} /></TableCell><TableCell>{r.status === "approved_finance" && <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `real-${r.no_bon_ref}`)}><Download className="h-3 w-3" />PDF</Button>}</TableCell></TableRow>))}</TableBody>
-                </Table></CardContent></Card>
-            )}
+            
+            {/* Realisasi History with Filters */}
+            <Card className="border-slate-100 shadow-sm rounded-xl">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={filterMonth} onValueChange={setFilterMonth}>
+                      <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Bulan" /></SelectTrigger>
+                      <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={filterYear} onValueChange={setFilterYear}>
+                      <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue placeholder="Tahun" /></SelectTrigger>
+                      <SelectContent>{years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input type="number" placeholder="Min Rp" value={filterMinAmount} onChange={e => setFilterMinAmount(e.target.value)} className="w-[100px] h-8 text-xs" />
+                    <Input type="number" placeholder="Max Rp" value={filterMaxAmount} onChange={e => setFilterMaxAmount(e.target.value)} className="w-[100px] h-8 text-xs" />
+                    {(filterMonth || filterYear || filterMinAmount || filterMaxAmount) && (
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>Reset</Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table><TableHeader><TableRow>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ref.</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pemohon</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sisa</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {historyRealisasi.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-400">Tidak ada riwayat</TableCell></TableRow>
+                  ) : historyRealisasi.map(r => (
+                    <TableRow key={r.id} className="border-slate-50 cursor-pointer hover:bg-slate-50" onClick={() => setShowDetail({ ...r, type: "realisasi" })}>
+                      <TableCell className="text-sm font-mono">{r.no_bon_ref}</TableCell>
+                      <TableCell className="text-sm">{r.user_name}</TableCell>
+                      <TableCell className="text-sm font-medium">{fmt(r.total_realisasi)}</TableCell>
+                      <TableCell className={`text-sm font-medium ${r.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(r.sisa_bon)}</TableCell>
+                      <TableCell><StatusBadge status={r.status} /></TableCell>
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        {r.status === "approved_finance" && (
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-emerald-600" onClick={() => downloadPdf(r.id, "realisasi", `real-${r.no_bon_ref}`)}><Download className="h-3 w-3" />PDF</Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>
 
+      {/* Decline Dialog */}
       <Dialog open={!!showDecline} onOpenChange={() => { setShowDecline(null); setDeclineReason(""); }}>
         <DialogContent data-testid="decline-dialog">
           <DialogHeader><DialogTitle>Tolak</DialogTitle><DialogDescription>Berikan alasan penolakan</DialogDescription></DialogHeader>
@@ -585,6 +692,192 @@ function ApprovalView({ role }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowDecline(null); setDeclineReason(""); }}>Batal</Button>
             <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={decline} data-testid="confirm-decline">Tolak</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Detail Dialog */}
+      <Dialog open={!!showDetail} onOpenChange={() => setShowDetail(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="detail-dialog">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {showDetail?.type === "bon-sementara" ? "Detail Perjalanan Dinas" : "Detail Realisasi"}
+            </DialogTitle>
+            <DialogDescription>{showDetail?.no_bon || showDetail?.no_bon_ref}</DialogDescription>
+          </DialogHeader>
+          {showDetail?.type === "bon-sementara" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="font-semibold text-slate-500">Pemohon:</span> <span className="text-slate-900">{showDetail.user_name}</span></div>
+                <div><span className="font-semibold text-slate-500">NIK:</span> <span className="text-slate-900">{showDetail.nik || "-"}</span></div>
+                <div><span className="font-semibold text-slate-500">Jabatan:</span> <span className="text-slate-900">{showDetail.jabatan || "-"}</span></div>
+                <div><span className="font-semibold text-slate-500">Wilayah:</span> <span className="text-slate-900">{showDetail.wilayah || "-"}</span></div>
+                <div><span className="font-semibold text-slate-500">Tujuan:</span> <span className="text-slate-900">{showDetail.tujuan}</span></div>
+                <div><span className="font-semibold text-slate-500">Periode:</span> <span className="text-slate-900">{showDetail.periode_mulai} s/d {showDetail.periode_selesai}</span></div>
+                <div className="col-span-2"><span className="font-semibold text-slate-500">Keperluan:</span> <span className="text-slate-900">{showDetail.keperluan}</span></div>
+              </div>
+              
+              {showDetail.akomodasi && (showDetail.akomodasi.nama_hotel || showDetail.akomodasi.kota_tujuan) && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Akomodasi</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-slate-500">Hotel:</span> {showDetail.akomodasi.nama_hotel || "-"}</div>
+                      <div><span className="text-slate-500">Kota:</span> {showDetail.akomodasi.kota_tujuan || "-"}</div>
+                      <div><span className="text-slate-500">Check In:</span> {showDetail.akomodasi.check_in || "-"}</div>
+                      <div><span className="text-slate-500">Check Out:</span> {showDetail.akomodasi.check_out || "-"}</div>
+                      <div><span className="text-slate-500">Harga/Malam:</span> {fmt(showDetail.akomodasi.harga_per_malam || 0)}</div>
+                      <div><span className="text-slate-500">Pembayaran:</span> {showDetail.akomodasi.pembayaran || "-"}</div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {(showDetail.transportasi_berangkat?.jenis || showDetail.transportasi_kembali?.jenis) && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Transportasi</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="font-medium text-slate-600 mb-1">Berangkat:</p>
+                        <p><span className="text-slate-500">Jenis:</span> {showDetail.transportasi_berangkat?.jenis || "-"}</p>
+                        <p><span className="text-slate-500">Dari:</span> {showDetail.transportasi_berangkat?.dari_kota || "-"}</p>
+                        <p><span className="text-slate-500">Ke:</span> {showDetail.transportasi_berangkat?.ke_kota || "-"}</p>
+                        <p><span className="text-slate-500">Jam:</span> {showDetail.transportasi_berangkat?.jam_berangkat || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-600 mb-1">Kembali:</p>
+                        <p><span className="text-slate-500">Jenis:</span> {showDetail.transportasi_kembali?.jenis || "-"}</p>
+                        <p><span className="text-slate-500">Dari:</span> {showDetail.transportasi_kembali?.dari_kota || "-"}</p>
+                        <p><span className="text-slate-500">Ke:</span> {showDetail.transportasi_kembali?.ke_kota || "-"}</p>
+                        <p><span className="text-slate-500">Jam:</span> {showDetail.transportasi_kembali?.jam_berangkat || "-"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {showDetail.estimasi_items && showDetail.estimasi_items.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Estimasi Biaya</h4>
+                    <div className="space-y-1">
+                      {showDetail.estimasi_items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-slate-600">{idx + 1}. {item.uraian}</span>
+                          <span className="font-medium">{fmt(item.jumlah || 0)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold border-t pt-2 mt-2">
+                        <span>TOTAL</span>
+                        <span>{fmt(showDetail.jumlah)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {showDetail.approval_history && showDetail.approval_history.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Riwayat Persetujuan</h4>
+                    <div className="space-y-2">
+                      {showDetail.approval_history.map((h, idx) => (
+                        <div key={idx} className={`flex items-center justify-between text-sm p-2 rounded ${h.action === "approved" ? "bg-emerald-50" : "bg-red-50"}`}>
+                          <div>
+                            <span className={`font-medium ${h.action === "approved" ? "text-emerald-700" : "text-red-700"}`}>{h.by}</span>
+                            <span className="text-slate-500 ml-2">({h.role?.toUpperCase()})</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={h.action === "approved" ? "text-emerald-600" : "text-red-600"}>{h.action === "approved" ? "Disetujui" : "Ditolak"}</span>
+                            <p className="text-xs text-slate-400">{h.at?.slice(0, 10)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
+          {showDetail?.type === "realisasi" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="font-semibold text-slate-500">Ref. Bon:</span> <span className="text-slate-900">{showDetail.no_bon_ref}</span></div>
+                <div><span className="font-semibold text-slate-500">Pemohon:</span> <span className="text-slate-900">{showDetail.user_name}</span></div>
+                <div><span className="font-semibold text-slate-500">Periode:</span> <span className="text-slate-900">{showDetail.periode}</span></div>
+                <div><span className="font-semibold text-slate-500">Status:</span> <StatusBadge status={showDetail.status} /></div>
+              </div>
+              
+              {showDetail.items && showDetail.items.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Rincian Biaya</h4>
+                    <Table>
+                      <TableHeader><TableRow>
+                        <TableHead className="text-xs">Tanggal</TableHead>
+                        <TableHead className="text-xs">Uraian</TableHead>
+                        <TableHead className="text-xs text-right">Qty</TableHead>
+                        <TableHead className="text-xs text-right">Harga</TableHead>
+                        <TableHead className="text-xs text-right">Total</TableHead>
+                      </TableRow></TableHeader>
+                      <TableBody>
+                        {showDetail.items.map((item, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-xs">{item.tanggal || "-"}</TableCell>
+                            <TableCell className="text-xs">{item.uraian}</TableCell>
+                            <TableCell className="text-xs text-right">{item.quantity}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(item.harga_per_unit)}</TableCell>
+                            <TableCell className="text-xs text-right font-medium">{fmt(item.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="mt-3 space-y-1 text-sm">
+                      <div className="flex justify-between"><span>Total Realisasi:</span><span className="font-bold">{fmt(showDetail.total_realisasi)}</span></div>
+                      <div className="flex justify-between"><span>Uang Muka:</span><span>{fmt(showDetail.uang_muka)}</span></div>
+                      <div className={`flex justify-between ${showDetail.sisa_bon >= 0 ? "text-emerald-600" : "text-red-600"}`}><span>Sisa:</span><span className="font-bold">{fmt(showDetail.sisa_bon)}</span></div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {showDetail.approval_history && showDetail.approval_history.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold text-slate-700 mb-2">Riwayat Persetujuan</h4>
+                    <div className="space-y-2">
+                      {showDetail.approval_history.map((h, idx) => (
+                        <div key={idx} className={`flex items-center justify-between text-sm p-2 rounded ${h.action === "approved" ? "bg-emerald-50" : "bg-red-50"}`}>
+                          <div>
+                            <span className={`font-medium ${h.action === "approved" ? "text-emerald-700" : "text-red-700"}`}>{h.by}</span>
+                            <span className="text-slate-500 ml-2">({h.role?.toUpperCase()})</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={h.action === "approved" ? "text-emerald-600" : "text-red-600"}>{h.action === "approved" ? "Disetujui" : "Ditolak"}</span>
+                            <p className="text-xs text-slate-400">{h.at?.slice(0, 10)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetail(null)}>Tutup</Button>
+            {showDetail?.type === "bon-sementara" && ["approved_atasan", "approved_hrga", "approved_direktur", "approved_finance"].includes(showDetail?.status) && (
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-1" onClick={() => { downloadPdf(showDetail.id, "bon-sementara", `RPD-${showDetail.no_bon}`, "/pdf-perjalanan-dinas"); }}><FileText className="h-4 w-4" />Download RPD</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
