@@ -179,7 +179,7 @@ test_plan:
     - "Update estimasi form UI dengan dropdown kategori dan input quantity"
     - "Auto-populate estimasi items dari akomodasi dan transportasi"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
