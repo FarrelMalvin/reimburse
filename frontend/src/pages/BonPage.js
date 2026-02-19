@@ -755,7 +755,16 @@ function ApprovalView({ role }) {
             <Card className="border-slate-100 shadow-sm rounded-xl">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-3">
-                  <CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
+                    {role === 'hrga' && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1">
+                        <span className="text-xs text-emerald-600 font-medium">Total: </span>
+                        <span className="text-sm text-emerald-700 font-bold">{fmt(totalRealisasiFiltered)}</span>
+                        <span className="text-xs text-emerald-500 ml-1">({historyRealisasi.length} data)</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Select value={filterMonth} onValueChange={setFilterMonth}>
                       <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Bulan" /></SelectTrigger>
