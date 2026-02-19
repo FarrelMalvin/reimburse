@@ -450,6 +450,13 @@ function ApprovalView({ role }) {
   const pendingBons = bons.filter(b => b.status === bonPendingStatus[role]);
   const pendingRealisasi = realisasi.filter(r => r.status === realisasiPendingStatus[role]);
   
+  // Filters
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMinAmount, setFilterMinAmount] = useState("");
+  const [filterMaxAmount, setFilterMaxAmount] = useState("");
+  const [showDetail, setShowDetail] = useState(null);
+  
   // Role labels for display
   const roleLabels = {
     atasan: "Atasan Departemen",
@@ -473,14 +480,32 @@ function ApprovalView({ role }) {
     } catch (err) { toast.error(err.response?.data?.detail || "Gagal"); }
   };
 
-  const downloadPdf = async (id, type, name) => {
+  const downloadPdf = async (id, type, name, endpoint = "/pdf") => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/${type}/${id}${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `${name}.pdf`; a.click();
+      window.URL.revokeObjectURL(url);
     } catch { toast.error("Gagal"); }
+  };
+
+  // Apply filters to history
+  const applyFilters = (items) => {
+    return items.filter(item => {
+      const itemDate = new Date(item.created_at);
+      const itemMonth = itemDate.getMonth() + 1;
+      const itemYear = itemDate.getFullYear();
+      const amount = item.jumlah || item.total_realisasi || 0;
+      
+      if (filterMonth && itemMonth !== parseInt(filterMonth)) return false;
+      if (filterYear && itemYear !== parseInt(filterYear)) return false;
+      if (filterMinAmount && amount < parseFloat(filterMinAmount)) return false;
+      if (filterMaxAmount && amount > parseFloat(filterMaxAmount)) return false;
+      return true;
+    });
   };
 
   const renderApprovalTable = (items, type, label) => (
@@ -496,11 +521,11 @@ function ApprovalView({ role }) {
         <TableBody>
           {items.length === 0 ? (<TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-400">Tidak ada yang menunggu persetujuan {roleLabels[role]}</TableCell></TableRow>) :
           items.map(item => (
-            <TableRow key={item.id} className="border-slate-50" data-testid={`approve-row-${item.id}`}>
+            <TableRow key={item.id} className="border-slate-50 cursor-pointer hover:bg-slate-50" data-testid={`approve-row-${item.id}`} onClick={() => setShowDetail({ ...item, type })}>
               <TableCell className="text-sm font-medium text-slate-900">{item.user_name}</TableCell>
               <TableCell><p className="text-sm text-slate-900">{type === "bon-sementara" ? item.no_bon : item.no_bon_ref}</p><p className="text-xs text-slate-500">{type === "bon-sementara" ? item.tujuan : item.periode}</p></TableCell>
               <TableCell className="text-sm font-medium text-slate-900">{fmt(type === "bon-sementara" ? item.jumlah : item.total_realisasi)}</TableCell>
-              <TableCell>
+              <TableCell onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-1">
                   <Button size="sm" className="h-7 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => approve(item.id, type)} data-testid={`approve-btn-${item.id}`}><CheckCircle2 className="h-3 w-3" />Setujui</Button>
                   <Button size="sm" variant="ghost" className="h-7 gap-1 text-red-600 hover:bg-red-50" onClick={() => setShowDecline({ ...item, type })} data-testid={`decline-btn-${item.id}`}><XCircle className="h-3 w-3" />Tolak</Button>
@@ -513,11 +538,16 @@ function ApprovalView({ role }) {
     </Card>
   );
 
-  const historyBons = bons.filter(b => !pendingBons.includes(b));
-  const historyRealisasi = realisasi.filter(r => !pendingRealisasi.includes(r));
+  const historyBons = applyFilters(bons.filter(b => !pendingBons.includes(b)));
+  const historyRealisasi = applyFilters(realisasi.filter(r => !pendingRealisasi.includes(r)));
   
   // Atasan tidak terlibat dalam realisasi bon
   const showRealisasiTab = role !== 'atasan';
+  
+  // Generate year options
+  const years = [];
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= currentYear - 5; y--) years.push(y);
 
   return (
     <div className="space-y-6">
