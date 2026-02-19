@@ -111,11 +111,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Added kategori (string) and quantity (int) fields to EstimasiItem model"
+      - working: true
+        agent: "testing"
+        comment: "Backend API tested successfully. POST /api/bon-sementara accepts and saves estimasi_items with kategori, uraian, quantity, jumlah structure correctly"
 
 frontend:
   - task: "Update estimasi_items structure dengan kategori dan quantity"
