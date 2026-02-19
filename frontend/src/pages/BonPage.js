@@ -503,13 +503,29 @@ function PegawaiView() {
                 <Button variant="outline" size="sm" onClick={addRealItem} className="h-7 gap-1" data-testid="add-real-item"><Plus className="h-3 w-3" />Tambah</Button>
               </div>
               {realForm.items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-2"><Label className="text-xs">Tanggal</Label><Input type="date" value={item.tanggal} onChange={e => updateRealItem(idx, "tanggal", e.target.value)} data-testid={`real-item-tgl-${idx}`} /></div>
-                  <div className="col-span-4"><Label className="text-xs">Uraian</Label><Input placeholder="Keterangan" value={item.uraian} onChange={e => updateRealItem(idx, "uraian", e.target.value)} data-testid={`real-item-uraian-${idx}`} /></div>
-                  <div className="col-span-1"><Label className="text-xs">Qty</Label><Input type="number" value={item.quantity} onChange={e => updateRealItem(idx, "quantity", e.target.value)} data-testid={`real-item-qty-${idx}`} /></div>
-                  <div className="col-span-2"><Label className="text-xs">Harga/Unit</Label><Input type="number" value={item.harga_per_unit} onChange={e => updateRealItem(idx, "harga_per_unit", e.target.value)} data-testid={`real-item-harga-${idx}`} /></div>
-                  <div className="col-span-2"><Label className="text-xs">Total</Label><Input disabled value={fmt(item.total || 0)} /></div>
-                  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-9 w-9 text-red-500" onClick={() => removeRealItem(idx)} data-testid={`remove-real-item-${idx}`}><Trash2 className="h-4 w-4" /></Button></div>
+                <div key={idx} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Item {idx + 1}</span>
+                    {realForm.items.length > 1 && (
+                      <Button variant="ghost" size="sm" className="h-6 gap-1 text-red-500" onClick={() => removeRealItem(idx)} data-testid={`remove-real-item-${idx}`}>
+                        <Trash2 className="h-3 w-3" />Hapus
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <div className="col-span-2"><Label className="text-xs">Tanggal</Label><Input type="date" value={item.tanggal} onChange={e => updateRealItem(idx, "tanggal", e.target.value)} data-testid={`real-item-tgl-${idx}`} className="h-9" /></div>
+                    <div className="col-span-4"><Label className="text-xs">Uraian</Label><Input placeholder="Keterangan" value={item.uraian} onChange={e => updateRealItem(idx, "uraian", e.target.value)} data-testid={`real-item-uraian-${idx}`} className="h-9" /></div>
+                    <div className="col-span-1"><Label className="text-xs">Qty</Label><Input type="number" value={item.quantity} onChange={e => updateRealItem(idx, "quantity", e.target.value)} data-testid={`real-item-qty-${idx}`} className="h-9" /></div>
+                    <div className="col-span-2"><Label className="text-xs">Harga/Unit</Label><Input type="number" value={item.harga_per_unit} onChange={e => updateRealItem(idx, "harga_per_unit", e.target.value)} data-testid={`real-item-harga-${idx}`} className="h-9" /></div>
+                    <div className="col-span-2"><Label className="text-xs">Total</Label><Input disabled value={fmt(item.total || 0)} className="h-9" /></div>
+                    <div className="col-span-1">
+                      <Label className="text-xs">Bukti</Label>
+                      <label className="flex items-center justify-center h-9 border-2 border-dashed border-slate-300 rounded-md hover:bg-slate-50 transition cursor-pointer">
+                        <UploadCloud className={`h-4 w-4 ${item.bukti ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        <input type="file" accept="image/*" className="hidden" onChange={e => handleItemFileChange(idx, e.target.files[0])} />
+                      </label>
+                    </div>
+                  </div>
                 </div>
               ))}
               <div className="bg-slate-50 p-3 rounded-lg">
