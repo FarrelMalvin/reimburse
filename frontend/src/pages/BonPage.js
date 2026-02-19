@@ -49,6 +49,35 @@ function PegawaiView() {
   const [realForm, setRealForm] = useState({ bon_sementara_id: "", periode: "", items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }], bukti_transfer: null });
   const [loading, setLoading] = useState(false);
 
+  // Handler untuk auto-populate items dari bon sementara
+  const handleBonSementaraChange = (bonId) => {
+    const selectedBon = approvedBons.find(b => b.id === bonId);
+    
+    if (selectedBon && selectedBon.estimasi_items && selectedBon.estimasi_items.length > 0) {
+      // Auto-populate items dari estimasi_items bon sementara
+      const populatedItems = selectedBon.estimasi_items.map(est => ({
+        tanggal: "", // User akan isi tanggal aktual
+        uraian: est.uraian || "",
+        quantity: est.quantity || 1,
+        harga_per_unit: 0, // User akan isi harga aktual
+        total: 0
+      }));
+      
+      setRealForm(p => ({
+        ...p,
+        bon_sementara_id: bonId,
+        items: populatedItems
+      }));
+    } else {
+      // Jika tidak ada estimasi_items, set default
+      setRealForm(p => ({
+        ...p,
+        bon_sementara_id: bonId,
+        items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }]
+      }));
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [b, r, a] = await Promise.all([api.get("/bon-sementara"), api.get("/realisasi"), api.get("/bon-sementara-approved")]);
