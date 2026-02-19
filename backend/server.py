@@ -557,6 +557,13 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
             hrga_name = approval.get("by", "-")
             break
     
+    # Get all approver names
+    finance_name = "-"
+    for approval in approval_history:
+        if approval.get("role") == "finance" and approval.get("action") == "approved":
+            finance_name = approval.get("by", "-")
+            break
+    
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -592,7 +599,7 @@ async def pdf_bon_sementara(bon_id: str, authorization: str = Header(None)):
     pdf.ln(18)
     pdf.set_font('Helvetica', 'B', 9)
     pdf.cell(60, 7, hrga_name, align='C')
-    pdf.cell(60, 7, '________________', align='C')
+    pdf.cell(60, 7, finance_name, align='C')
     pdf.cell(60, 7, '________________', align='C')
     return Response(content=bytes(pdf.output()), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={bon['no_bon'].replace('/', '-')}.pdf"})
 
