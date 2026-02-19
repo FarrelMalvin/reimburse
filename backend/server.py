@@ -512,11 +512,24 @@ async def pdf_perjalanan_dinas(bon_id: str, authorization: str = Header(None)):
     pdf.cell(45, 5, 'Direktur', align='C', ln=True)
     pdf.ln(12)
     
+    # Get approver names from history
+    atasan_name = "-"
+    hrga_name_pdf = "-"
+    direktur_name = "-"
+    for approval in approval_history:
+        if approval.get("action") == "approved":
+            if approval.get("role") == "atasan":
+                atasan_name = approval.get("by", "-")
+            elif approval.get("role") == "hrga":
+                hrga_name_pdf = approval.get("by", "-")
+            elif approval.get("role") == "direktur":
+                direktur_name = approval.get("by", "-")
+    
     pdf.set_font('Helvetica', 'B', 8)
     pdf.cell(45, 5, bon.get('user_name', '-'), align='C')
-    pdf.cell(45, 5, '________________', align='C')
-    pdf.cell(45, 5, '________________', align='C')
-    pdf.cell(45, 5, '________________', align='C', ln=True)
+    pdf.cell(45, 5, atasan_name, align='C')
+    pdf.cell(45, 5, hrga_name_pdf, align='C')
+    pdf.cell(45, 5, direktur_name, align='C', ln=True)
     
     pdf.set_font('Helvetica', '', 7)
     pdf.cell(45, 4, f'Tgl: {bon["created_at"][:10]}', align='C')
