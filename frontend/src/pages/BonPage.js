@@ -475,7 +475,7 @@ function PegawaiView() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Referensi No. Bon Sementara *</Label>
-                <Select value={realForm.bon_sementara_id} onValueChange={v => setRealForm(p => ({ ...p, bon_sementara_id: v }))}>
+                <Select value={realForm.bon_sementara_id} onValueChange={handleBonSementaraChange}>
                   <SelectTrigger data-testid="real-bon-ref"><SelectValue placeholder="Pilih Bon Sementara" /></SelectTrigger>
                   <SelectContent>{approvedBons.map(b => <SelectItem key={b.id} value={b.id}>{b.no_bon} - {b.tujuan} ({fmt(b.jumlah)})</SelectItem>)}</SelectContent>
                 </Select>
