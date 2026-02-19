@@ -646,6 +646,34 @@ function ApprovalView({ role }) {
     setFilterMonth(""); setFilterYear(""); setFilterMinAmount(""); setFilterMaxAmount("");
   };
   
+  // Download Excel function
+  const downloadExcel = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const params = new URLSearchParams();
+      if (filterMonth) params.append('month', filterMonth);
+      if (filterYear) params.append('year', filterYear);
+      if (filterMinAmount) params.append('min_amount', filterMinAmount);
+      if (filterMaxAmount) params.append('max_amount', filterMaxAmount);
+      
+      const res = await fetch(`${BACKEND_URL}/api/bon-sementara/export-excel?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!res.ok) throw new Error("Failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Recap_Perjalanan_Dinas_${new Date().getTime()}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel berhasil didownload");
+    } catch {
+      toast.error("Gagal download Excel");
+    }
+  };
+  
   // Calculate totals
   const totalBonsFiltered = historyBons.reduce((sum, b) => sum + (b.jumlah || 0), 0);
   const totalRealisasiFiltered = historyRealisasi.reduce((sum, r) => sum + (r.total_realisasi || 0), 0);
