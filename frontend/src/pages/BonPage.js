@@ -646,7 +646,7 @@ function ApprovalView({ role }) {
     setFilterMonth(""); setFilterYear(""); setFilterMinAmount(""); setFilterMaxAmount("");
   };
   
-  // Download Excel function
+  // Download Excel function for Realisasi
   const downloadExcel = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -656,7 +656,7 @@ function ApprovalView({ role }) {
       if (filterMinAmount) params.append('min_amount', filterMinAmount);
       if (filterMaxAmount) params.append('max_amount', filterMaxAmount);
       
-      const res = await fetch(`${BACKEND_URL}/api/bon-sementara/export-excel?${params.toString()}`, {
+      const res = await fetch(`${BACKEND_URL}/api/realisasi/export-excel?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -665,7 +665,7 @@ function ApprovalView({ role }) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Recap_Perjalanan_Dinas_${new Date().getTime()}.xlsx`;
+      a.download = `Recap_Realisasi_Bon_${new Date().getTime()}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success("Excel berhasil didownload");
