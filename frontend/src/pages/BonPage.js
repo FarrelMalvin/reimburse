@@ -81,7 +81,13 @@ function PegawaiView() {
   const updateEstimasiItem = (idx, field, val) => {
     setBonForm(p => {
       const items = [...p.estimasi_items];
-      items[idx] = { ...items[idx], [field]: field === 'jumlah' ? (parseFloat(val) || 0) : val };
+      if (field === 'jumlah') {
+        items[idx] = { ...items[idx], [field]: parseFloat(val) || 0 };
+      } else if (field === 'quantity') {
+        items[idx] = { ...items[idx], [field]: parseInt(val) || 1 };
+      } else {
+        items[idx] = { ...items[idx], [field]: val };
+      }
       return { ...p, estimasi_items: items };
     });
   };
