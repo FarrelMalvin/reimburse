@@ -694,11 +694,7 @@ function ApprovalView({ role }) {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <CardTitle className="text-base" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Riwayat</CardTitle>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1">
-                    <span className="text-xs text-emerald-600 font-medium">Total: </span>
-                    <span className="text-sm text-emerald-700 font-bold">{fmt(totalBonsFiltered)}</span>
-                    <span className="text-xs text-emerald-500 ml-1">({historyBons.length} data)</span>
-                  </div>
+                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{historyBons.length} data</Badge>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={filterMonth} onValueChange={setFilterMonth}>
@@ -714,6 +710,7 @@ function ApprovalView({ role }) {
                   {(filterMonth || filterYear || filterMinAmount || filterMaxAmount) && (
                     <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>Reset</Button>
                   )}
+                  <Button size="sm" className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={downloadExcel}><Download className="h-3 w-3" />Excel</Button>
                 </div>
               </div>
             </CardHeader>
