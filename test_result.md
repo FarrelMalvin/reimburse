@@ -165,6 +165,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "Auto-populate feature works but only partially. Akomodasi fields auto-populate correctly with correct kategori, uraian (showing 'Hotel Santika - Jakarta'), and quantity (3 nights). For Transportasi, only one item was populated instead of two. The populated item had kategori='transportasi', uraian='Pesawat Surabaya - Jakarta', quantity=1 as expected. The expected return journey item 'Pesawat Jakarta - Surabaya' was not auto-populated correctly."
+      - working: true
+        agent: "main"
+        comment: "Fixed auto-populate logic by using auto_generated flag to properly track manual vs auto-generated items. Both departure and return transportation items now correctly auto-populate. Logic improved to prevent item duplication and properly update when fields change."
 
 metadata:
   created_by: "main_agent"
