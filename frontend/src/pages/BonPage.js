@@ -60,7 +60,8 @@ function PegawaiView() {
         uraian: est.uraian || "",
         quantity: est.quantity || 1,
         harga_per_unit: 0, // User akan isi harga aktual
-        total: 0
+        total: 0,
+        bukti: null // User akan upload bukti
       }));
       
       setRealForm(p => ({
@@ -73,7 +74,7 @@ function PegawaiView() {
       setRealForm(p => ({
         ...p,
         bon_sementara_id: bonId,
-        items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }]
+        items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0, bukti: null }]
       }));
     }
   };
