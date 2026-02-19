@@ -71,7 +71,7 @@ function PegawaiView() {
   };
   
   const addEstimasiItem = () => {
-    setBonForm(p => ({ ...p, estimasi_items: [...p.estimasi_items, { uraian: "", jumlah: 0 }] }));
+    setBonForm(p => ({ ...p, estimasi_items: [...p.estimasi_items, { kategori: "konsumsi", uraian: "", quantity: 1, jumlah: 0 }] }));
   };
   
   const removeEstimasiItem = (idx) => {
