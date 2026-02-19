@@ -635,6 +635,114 @@ async def get_approved_bons(authorization: str = Header(None)):
     bons = await db.bon_sementara.find({"user_id": user['id'], "status": "approved_finance"}, {"_id": 0, "foto": 0}).to_list(100)
     return bons
 
+@api_router.get("/bon-sementara/export-excel")
+async def export_bon_excel(
+    authorization: str = Header(None),
+    month: Optional[str] = None,
+    year: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None
+):
+    user = await get_current_user(authorization)
+    
+    # Build query based on role
+    query = {}
+    role = user['role']
+    
+    if role == 'pegawai':
+        query["user_id"] = user['id']
+    elif role == 'atasan':
+        pass  # Can see all
+    elif role == 'hrga':
+        query["status"] = {"$in": ["approved_atasan", "approved_hrga", "approved_direktur", "approved_finance", "declined"]}
+    elif role == 'direktur':
+        query["status"] = {"$in": ["approved_hrga", "approved_direktur", "approved_finance", "declined"]}
+    else:  # finance
+        query["status"] = {"$in": ["approved_direktur", "approved_finance", "declined"]}
+    
+    # Get all matching bons
+    bons = await db.bon_sementara.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Apply filters
+    filtered_bons = []
+    for bon in bons:
+        created_date = datetime.fromisoformat(bon['created_at'])
+        item_month = created_date.month
+        item_year = created_date.year
+        amount = bon.get('jumlah', 0)
+        
+        # Check filters
+        if month and int(month) != item_month:
+            continue
+        if year and int(year) != item_year:
+            continue
+        if min_amount and amount < float(min_amount):
+            continue
+        if max_amount and amount > float(max_amount):
+            continue
+        
+        filtered_bons.append(bon)
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Recap Perjalanan Dinas"
+    
+    # Header style
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Set column headers
+    headers = ["NO", "No Dokumen", "Periode", "Kategori", "Total (Rp)"]
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+    
+    # Set column widths
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 20
+    
+    # Populate data
+    for idx, bon in enumerate(filtered_bons, 1):
+        periode = f"{bon.get('periode_mulai', '')} s/d {bon.get('periode_selesai', '')}"
+        
+        # Get kategori from estimasi_items
+        estimasi_items = bon.get('estimasi_items', [])
+        kategori_list = list(set([item.get('kategori', '').title() for item in estimasi_items if item.get('kategori')]))
+        kategori_str = ", ".join(kategori_list) if kategori_list else "-"
+        
+        ws.cell(row=idx+1, column=1).value = idx
+        ws.cell(row=idx+1, column=2).value = bon.get('no_bon', '')
+        ws.cell(row=idx+1, column=3).value = periode
+        ws.cell(row=idx+1, column=4).value = kategori_str
+        ws.cell(row=idx+1, column=5).value = bon.get('jumlah', 0)
+        
+        # Alignment
+        ws.cell(row=idx+1, column=1).alignment = Alignment(horizontal="center")
+        ws.cell(row=idx+1, column=5).alignment = Alignment(horizontal="right")
+    
+    # Save to BytesIO
+    excel_file = io.BytesIO()
+    wb.save(excel_file)
+    excel_file.seek(0)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Recap_Perjalanan_Dinas_{timestamp}.xlsx"
+    
+    return Response(
+        content=excel_file.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @api_router.post("/realisasi")
 async def create_realisasi(data: RealisasiBonCreate, authorization: str = Header(None)):
     user = await get_current_user(authorization)
