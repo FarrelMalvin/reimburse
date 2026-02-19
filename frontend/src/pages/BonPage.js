@@ -94,56 +94,50 @@ function PegawaiView() {
 
   // Auto-populate estimasi items from akomodasi and transportasi
   useEffect(() => {
-    const newItems = [];
-    
-    // Add akomodasi item if hotel is filled
-    if (bonForm.akomodasi_hotel && bonForm.akomodasi_checkin && bonForm.akomodasi_checkout) {
-      const checkin = new Date(bonForm.akomodasi_checkin);
-      const checkout = new Date(bonForm.akomodasi_checkout);
-      const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
+    setBonForm(p => {
+      // Remove old auto-generated items first
+      const manualItems = p.estimasi_items.filter(item => !item.auto_generated);
+      const newItems = [];
       
-      newItems.push({
-        kategori: "akomodasi",
-        uraian: `Hotel ${bonForm.akomodasi_hotel} - ${bonForm.akomodasi_kota}`,
-        quantity: nights > 0 ? nights : 1,
-        jumlah: 0
-      });
-    }
-    
-    // Add transportasi berangkat if filled
-    if (bonForm.trans_berangkat_jenis && bonForm.trans_berangkat_dari && bonForm.trans_berangkat_ke) {
-      newItems.push({
-        kategori: "transportasi",
-        uraian: `${bonForm.trans_berangkat_jenis} ${bonForm.trans_berangkat_dari} - ${bonForm.trans_berangkat_ke}`,
-        quantity: 1,
-        jumlah: 0
-      });
-    }
-    
-    // Add transportasi kembali if filled
-    if (bonForm.trans_kembali_jenis && bonForm.trans_kembali_dari && bonForm.trans_kembali_ke) {
-      newItems.push({
-        kategori: "transportasi",
-        uraian: `${bonForm.trans_kembali_jenis} ${bonForm.trans_kembali_dari} - ${bonForm.trans_kembali_ke}`,
-        quantity: 1,
-        jumlah: 0
-      });
-    }
-    
-    if (newItems.length > 0) {
-      setBonForm(p => {
-        // Keep manual items, remove old auto-generated items, add new auto-generated items
-        const manualItems = p.estimasi_items.filter(item => {
-          // Check if this is an auto-generated item by checking if it matches patterns
-          const isAutoAkomodasi = item.kategori === "akomodasi" && item.uraian.includes("Hotel");
-          const isAutoTransportasi = item.kategori === "transportasi" && 
-            (item.uraian.includes("Pesawat") || item.uraian.includes("Kereta") || 
-             item.uraian.includes("Mobil Dinas") || item.uraian.includes("Lainnya"));
-          return !(isAutoAkomodasi || isAutoTransportasi);
+      // Add akomodasi item if hotel is filled
+      if (bonForm.akomodasi_hotel && bonForm.akomodasi_checkin && bonForm.akomodasi_checkout) {
+        const checkin = new Date(bonForm.akomodasi_checkin);
+        const checkout = new Date(bonForm.akomodasi_checkout);
+        const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
+        
+        newItems.push({
+          kategori: "akomodasi",
+          uraian: `Hotel ${bonForm.akomodasi_hotel}${bonForm.akomodasi_kota ? ' - ' + bonForm.akomodasi_kota : ''}`,
+          quantity: nights > 0 ? nights : 1,
+          jumlah: 0,
+          auto_generated: true
         });
-        return { ...p, estimasi_items: [...manualItems, ...newItems] };
-      });
-    }
+      }
+      
+      // Add transportasi berangkat if filled
+      if (bonForm.trans_berangkat_jenis && bonForm.trans_berangkat_dari && bonForm.trans_berangkat_ke) {
+        newItems.push({
+          kategori: "transportasi",
+          uraian: `${bonForm.trans_berangkat_jenis} ${bonForm.trans_berangkat_dari} - ${bonForm.trans_berangkat_ke}`,
+          quantity: 1,
+          jumlah: 0,
+          auto_generated: true
+        });
+      }
+      
+      // Add transportasi kembali if filled
+      if (bonForm.trans_kembali_jenis && bonForm.trans_kembali_dari && bonForm.trans_kembali_ke) {
+        newItems.push({
+          kategori: "transportasi",
+          uraian: `${bonForm.trans_kembali_jenis} ${bonForm.trans_kembali_dari} - ${bonForm.trans_kembali_ke}`,
+          quantity: 1,
+          jumlah: 0,
+          auto_generated: true
+        });
+      }
+      
+      return { ...p, estimasi_items: [...manualItems, ...newItems] };
+    });
   }, [
     bonForm.akomodasi_hotel, bonForm.akomodasi_kota, bonForm.akomodasi_checkin, bonForm.akomodasi_checkout,
     bonForm.trans_berangkat_jenis, bonForm.trans_berangkat_dari, bonForm.trans_berangkat_ke,
