@@ -44,7 +44,7 @@ function PegawaiView() {
     trans_berangkat_jenis: "", trans_berangkat_dari: "", trans_berangkat_ke: "", trans_berangkat_jam: "", 
     trans_kembali_jenis: "", trans_kembali_dari: "", trans_kembali_ke: "", trans_kembali_jam: "", 
     foto: null,
-    estimasi_items: [{ uraian: "Biaya Konsumsi", jumlah: 0 }]
+    estimasi_items: [{ kategori: "konsumsi", uraian: "", quantity: 1, jumlah: 0 }]
   });
   const [realForm, setRealForm] = useState({ bon_sementara_id: "", periode: "", items: [{ tanggal: "", uraian: "", quantity: 1, harga_per_unit: 0, total: 0 }], bukti_transfer: null });
   const [loading, setLoading] = useState(false);
